@@ -11,7 +11,7 @@ jobs:
       LambdaName: AuthApiLambdaFunction
     strategy:
       matrix:
-        dotnet: [ '6.0.x' ]
+        dotnet: [ '8.0.x' ]
     
     name:  API Deployer PROD  BUILD
 
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '8.0.x'
       
     
       - name: Build
@@ -32,7 +32,7 @@ jobs:
         
       - name: Zip Publish Output
         run: zip -qq -r ./bundle.zip ./
-        working-directory: src/Api/bin/Release/net6.0/publish
+        working-directory: src/Api/bin/Release/net8.0/publish
         
           
       - name: deploy by aws cli
@@ -44,4 +44,4 @@ jobs:
             
       - name: AWS Deploy
         run: |
-          aws lambda update-function-code --function-name ${{ env.LambdaName }} --zip-file fileb://src/Api/bin/Release/net6.0/publish/bundle.zip
+          aws lambda update-function-code --function-name ${{ env.LambdaName }} --zip-file fileb://src/Api/bin/Release/net8.0/publish/bundle.zip
