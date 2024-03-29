@@ -21,11 +21,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Logging.ClearProviders();
 // Serilog configuration        
 var logger = new LoggerConfiguration()
+    .Enrich.WithProperty("Application", "Auth")
     .WriteTo.Console(new JsonFormatter())
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("AWSSDK", LogEventLevel.Warning)
+    .MinimumLevel.Override("System.", LogEventLevel.Warning)
     .CreateLogger();
-// Register Serilog
-builder.Logging.AddSerilog(logger);
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
