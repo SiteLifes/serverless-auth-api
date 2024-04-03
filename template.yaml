@@ -11,13 +11,24 @@ Parameters:
     Default: 'auth api'
     Description: (Required) The name of the S3 bucket where the Lambda function code is stored. Minimum 3 characters
 
+  ExposeType:
+    Type: String
+    Default: 'FunctionUrl'
+    AllowedValues: ['FunctionUrl', 'ApiGateway']
+    Description: (Required) The type of exposure for the API. FunctionUrl or ApiGateway
+
+Conditions:
+  IsFunctionUrlAuth: !Equals [!Ref ExposeType, "FunctionUrl"]
+  IsApiGatewayAuth: !Equals [!Ref ExposeType, "ApiGateway"]
+
 Resources:
   AuthApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
       Name: auth-api
       ProtocolType: HTTP
-
+    Condition: IsApiGatewayAuth
+    
   ProxyRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -29,7 +40,8 @@ Resources:
         - '/'
         - - 'integrations'
           - !Ref ProxyRouteAnyMethod
-  
+    Condition: IsApiGatewayAuth
+    
   ProxyRouteAnyMethod:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
@@ -40,14 +52,15 @@ Resources:
       IntegrationUri:
         Fn::Sub:
           arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthApiLambdaFunction.Arn}/invocations
-  
+    Condition: IsApiGatewayAuth
+      
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:
       - ProxyRoute
     Properties:
       ApiId: !Ref AuthApi
-
+    Condition: IsApiGatewayAuth
   Stage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
@@ -55,8 +68,18 @@ Resources:
       Description: Prod Stage
       DeploymentId: !Ref Deployment
       ApiId: !Ref AuthApi
-  
-  
+    Condition: IsApiGatewayAuth
+    
+  AuthApiLambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - AuthApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AuthApiLambdaFunction
+      Principal: apigateway.amazonaws.com
+    Condition: IsApiGatewayAuth
+    
   AuthApiTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -97,22 +120,30 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: auth
-  
+            
+  AuthApiApiFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn: !Ref AuthApiLambdaFunction
+    Condition: IsFunctionUrlAuth
+
+  AuthApiFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - AuthApiLambdaFunction
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref AuthApiLambdaFunction
+      FunctionUrlAuthType: 'NONE'
+      Principal: "*"
+      
   AuthApiLambdaFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/AuthApiLambdaFunction"
       RetentionInDays: 14
   
-  AuthApiLambdaFunctionPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - AuthApi
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref AuthApiLambdaFunction
-      Principal: apigateway.amazonaws.com
-
   AuthApiLambdaFunctionExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -230,9 +261,3 @@ Resources:
       Type: String
       Value: '{"Google": {"IsEnabled": true,"ValidationUrl": "https://www.google.com/recaptcha/api/siteverify","ServerKey": ""},"CloudFlare": {"IsEnabled": false, "ValidationUrl": "https://challenges.cloudflare.com/turnstile/v0/siteverify","SecretKey":""}}'
       Description: CaptchaValidationSettings
-
-
-Outputs:
-  AuthApiURI:
-    Description: "The Rest URI to connect to"
-    Value: !Join [ '', [ 'https://', !Ref AuthApi, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/','prod' ] ]
