@@ -53,6 +53,11 @@ public class JwtService : IJwtService
     public async Task<string?> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
         var refreshTokenEntity = await _authRepository.GetRefreshTokenAsync(refreshToken, cancellationToken);
+        if (refreshTokenEntity == null || refreshTokenEntity.ExpireAt < DateTime.UtcNow)
+        {
+            return null;
+        }
+        refreshTokenEntity.ExpireAt = DateTime.UtcNow.AddMinutes(_jwtOptionsSnapshot.Value.ExpireMinutes);
         return refreshTokenEntity?.UserId;
     }
 

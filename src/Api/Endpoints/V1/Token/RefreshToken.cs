@@ -27,8 +27,6 @@ public class RefreshToken : IEndpoint
         }
 
         var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken);
-        await authService.DeleteRefreshTokenAsync(request.RefreshToken, cancellationToken);
-
         return Results.Ok(new JwtDto(jwt.Token, jwt.RefreshToken));
     }
 
