@@ -39,6 +39,13 @@ public class EventBusManager : IEventBusManager
             cancellationToken);
     }
 
+    public async Task<bool> LogoutUserAsync(string userId, string deviceId, CancellationToken cancellationToken)
+    {
+        return await PublishAsync(
+            new EventModel<object>("UserLoggedOut", new { UserId = userId, deviceId = deviceId }),
+            cancellationToken);
+    }
+
     private async Task<bool> PublishAsync(EventModel<object> eventModel, CancellationToken cancellationToken = default)
     {
         if (!_eventBusSettingsOptions.Value.IsEnabled)
