@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using Amazon.SimpleNotificationService;
 using Domain.Domains;
-using Domain.Entities;
 using Domain.Options;
 using Domain.Services;
 using Microsoft.Extensions.Options;

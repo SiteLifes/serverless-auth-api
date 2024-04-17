@@ -1,5 +1,4 @@
 using Domain.Options;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace Api.Infrastructure.Middleware;

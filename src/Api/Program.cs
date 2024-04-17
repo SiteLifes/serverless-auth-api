@@ -1,7 +1,3 @@
-using System.Reflection;
-using Amazon;
-using Amazon.DynamoDBv2;
-using Amazon.Extensions.NETCore.Setup;
 using Api.Infrastructure.Extensions;
 using Api.Infrastructure.Middleware;
 using FluentValidation;

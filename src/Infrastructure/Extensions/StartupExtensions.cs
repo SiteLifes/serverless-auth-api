@@ -1,10 +1,12 @@
 using Amazon.DynamoDBv2;
 using Amazon.Extensions.Configuration.SystemsManager;
 using Amazon.SimpleNotificationService;
+using Domain.External;
 using Domain.Options;
 using Domain.Repositories;
 using Domain.Services;
 using Infrastructure.Context;
+using Infrastructure.External;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Infrastructure.Services.Providers;
@@ -32,6 +34,9 @@ public static class StartupExtensions
         service.AddAWSService<IAmazonDynamoDB>();
         service.AddAWSLambdaHosting(Environment.GetEnvironmentVariable("ApiGatewayType") == "RestApi" ? LambdaEventSource.RestApi : LambdaEventSource.HttpApi);
         service.AddScoped<IApiContext, ApiContext>();
+        
+        service.AddHttpClient<IGoogleHttpClient, GoogleHttpClient>();
+        service.AddHttpClient<IMicrosoftHttpClient, MicrosoftHttpClient>();
 
         service.AddAWSService<IAmazonSimpleNotificationService>();
         service.Configure<JwtOptions>(configuration.GetSection("Jwt"));
@@ -43,6 +48,8 @@ public static class StartupExtensions
         service.Configure<ApiKeyValidationSettings>(configuration.GetSection("ApiKeyValidationSettings"));
         service.Configure<AllowedPhonesOptions>(configuration.GetSection("AllowedPhones"));
         service.Configure<EventBusSettings>(configuration.GetSection("EventBusSettings"));
+        service.Configure<GoogleAuthOptions>(configuration.GetSection("GoogleAuthOptions"));
+        service.Configure<MicrosoftAuthOptions>(configuration.GetSection("MicrosoftAuthOptions"));
 
 
         configuration.AddSystemsManager(config =>

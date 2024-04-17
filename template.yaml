@@ -253,6 +253,22 @@ Resources:
       Type: String
       Value: '{"AllowAll":false,"Phones":[""],"Code":"1111"}'
       Description: AuthApiKeyValidationSettings
+      
+  GoogleAuthOptionsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /auth-api/GoogleAuthOptions
+      Type: String
+      Value: '{"IsEnabled":false,"ClientId":"please fill","ClientSecret":"please fill"}'
+      Description: GoogleAuthOptions
+      
+  MicrosoftAuthOptionsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /auth-api/MicrosoftAuthOptions
+      Type: String
+      Value: '{"IsEnabled":false,"ClientId":"please fill","ClientSecret":"please fill"}'
+      Description: MicrosoftAuthOptions
 
   CaptchaParameter:
     Type: AWS::SSM::Parameter
