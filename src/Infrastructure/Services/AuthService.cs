@@ -143,16 +143,11 @@ public class AuthService : IAuthService
     public async Task<bool> ResetPasswordAsync(string userId, string email, string otp, string password,
         CancellationToken cancellationToken)
     {
-        if (otp != "11111")
+        var otpEntity = await _authRepository.GetForgotPasswordOtpAsync(email, otp, cancellationToken);
+        if (otpEntity == null)
         {
-            var otpEntity = await _authRepository.GetForgotPasswordOtpAsync(email, otp, cancellationToken);
-            if (otpEntity == null)
-            {
-                return false;
-            }
+            return false;
         }
-
-
         await CreatePasswordUserMapping(userId, password, cancellationToken);
         return true;
     }
