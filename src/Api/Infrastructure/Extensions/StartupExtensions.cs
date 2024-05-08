@@ -19,11 +19,11 @@ namespace Api.Infrastructure.Extensions
                 }
 
                 var endpoint = Activator.CreateInstance(endpointType);
-                if (endpoint is IEndpoint agadaEndpoint)
+                if (endpoint is IEndpoint iEndpoint)
                 {
                     try
                     {
-                        agadaEndpoint.MapEndpoint(endpoints)
+                        iEndpoint.MapEndpoint(endpoints)
                             .Produces400()
                             .Produces404()
                             .Produces500();
@@ -36,6 +36,10 @@ namespace Api.Infrastructure.Extensions
                 }
             }
 
+            endpoints.MapGet("ping", async context =>
+            {
+                await context.Response.WriteAsync("pong");
+            }).ExcludeFromDescription();
             return endpoints;
         }
     }
