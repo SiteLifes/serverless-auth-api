@@ -15,5 +15,5 @@ public class RefreshTokenEntity : IEntity
 
     [JsonPropertyName("ttl")] public long Ttl => ExpireAt.ToUnixTimeSeconds();
 
-    public static string GetPk(string? pkKey = null) => $"RefreshToken{pkKey}";
+    public static string GetPk() => $"RefreshToken";
 }

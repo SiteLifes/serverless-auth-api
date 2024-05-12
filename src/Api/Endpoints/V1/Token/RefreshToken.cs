@@ -12,6 +12,7 @@ public class RefreshToken : IEndpoint
         [FromServices] IAuthService authService,
         [FromServices] IJwtService jwtService,
         [FromServices] IValidator<RefreshTokenRequest> validator,
+        [FromServices] ILogger<RefreshToken> logger,
         CancellationToken cancellationToken = default)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -23,6 +24,7 @@ public class RefreshToken : IEndpoint
         var userId = await jwtService.ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken);
         if (string.IsNullOrEmpty(userId))
         {
+            logger.LogWarning("Invalid refresh token received. Token: {RefreshToken}", request.RefreshToken);
             return Results.Unauthorized();
         }
 
