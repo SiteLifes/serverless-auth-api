@@ -23,6 +23,8 @@ var logger = new LoggerConfiguration()
     .MinimumLevel.Override("AWSSDK", LogEventLevel.Warning)
     .MinimumLevel.Override("System.", LogEventLevel.Warning)
     .CreateLogger();
+// Register Serilog
+builder.Logging.AddSerilog(logger);
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
