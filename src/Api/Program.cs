@@ -1,3 +1,4 @@
+using System.Reflection;
 using Api.Infrastructure.Extensions;
 using Api.Infrastructure.Middleware;
 using FluentValidation;
@@ -31,7 +32,28 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(option =>
+{
+    option.CustomOperationIds(e =>
+    {
+        // Extract and join route values
+        var routeValues = string.Join(
+            "_",
+            e.ActionDescriptor.RouteValues.OrderByDescending(o => o.Key)
+                .Select(i => i.Value)
+        );
+
+        // Extract the namespace from the MethodInfo in EndpointMetadata
+        var methodInfo = e
+            .ActionDescriptor.EndpointMetadata.OfType<MethodInfo>()
+            .FirstOrDefault();
+        var namespaceName =
+            methodInfo?.DeclaringType?.Namespace?.Split('.').Last() ?? "Default";
+
+        // Return the custom operation ID including the namespace and route values
+        return $"{namespaceName}_{routeValues}";
+    });
+});
 builder.Services.AddScoped<ApiKeyValidatorMiddleware>();
 
 
@@ -45,10 +67,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
+    app.UseExceptionHandler(exceptionHandlerApp =>
+        exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
 }
+
 app.UseMiddleware<ApiKeyValidatorMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthorization();
