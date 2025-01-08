@@ -21,11 +21,17 @@ public class ValidateOtp : IEndpoint
             return Results.BadRequest(validationResult.ToDictionary());
 
         var result = await authService.VerifyOtpAsync(request.Key, request.Otp, cancellationToken);
+      
         if (!result)
         {
-            return Results.NotFound();
+            return Results.Problem(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Geçersiz OTP kodu!",
+                Detail = "Lütfen geçerli bir OTP kodu girin",
+            });
         }
-
+        
         var userId = await authService.FindUserByPhone(request.Key, cancellationToken);
         if (string.IsNullOrEmpty(userId))
         {
