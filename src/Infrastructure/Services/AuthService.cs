@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Text;
 using Domain.Constants;
 using Domain.Entities;
 using Domain.Entities.Base;
@@ -17,10 +19,12 @@ public class AuthService : IAuthService
     private readonly ISmsProviderFactory _smsProviderFactory;
     private readonly ICryptoService _cryptoService;
     private readonly IEventBusManager _eventBusManager;
+    private readonly HttpClient _httpClient;
+
 
     public AuthService(IAuthRepository authRepository, IOptionsSnapshot<JwtOptions> jwtOptionsSnapshot,
         IMessageService messageService, ISmsProviderFactory smsProviderFactory, ICryptoService cryptoService,
-        IOptionsSnapshot<AllowedPhonesOptions> allowedPhonesOptions, IEventBusManager eventBusManager)
+        IOptionsSnapshot<AllowedPhonesOptions> allowedPhonesOptions, IEventBusManager eventBusManager, HttpClient httpClient)
     {
         _authRepository = authRepository;
         _jwtOptionsSnapshot = jwtOptionsSnapshot;
@@ -29,9 +33,10 @@ public class AuthService : IAuthService
         _cryptoService = cryptoService;
         _allowedPhonesOptions = allowedPhonesOptions;
         _eventBusManager = eventBusManager;
+        _httpClient = httpClient;
     }
 
-    public async Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture,bool isRegistered,
+    public async Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
         CancellationToken cancellationToken = default)
     {
         var otpEntity = await _authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken);
@@ -43,7 +48,13 @@ public class AuthService : IAuthService
             messagePayload = string.Format(message.Message, otpEntity.Otp);
         }
 
-        await _eventBusManager.LoginOtpRequestedAsync(userId, phone, otpEntity.Otp,isRegistered, cancellationToken);
+        string messgae = $"SiteLifes giris sifreniz : {otpEntity.Otp}. Lutfen kimseyle paylasmayiniz.";
+
+        var sms = await SendSms(phone, messgae);
+
+        if (!sms) return false;
+
+        await _eventBusManager.LoginOtpRequestedAsync(userId, phone, otpEntity.Otp, isRegistered, cancellationToken);
         return await _smsProviderFactory.SendSms(phone, messagePayload, cancellationToken);
     }
 
@@ -70,6 +81,7 @@ public class AuthService : IAuthService
     public async Task<bool> VerifyOtpAsync(string phone, string otp, CancellationToken cancellationToken)
     {
         var entity = await _authRepository.GetLoginOtpAsync(phone, otp, cancellationToken);
+        
         if (entity == null)
         {
             if (_allowedPhonesOptions.Value.Phones.Contains(phone) || _allowedPhonesOptions.Value.AllowAll)
@@ -236,5 +248,41 @@ public class AuthService : IAuthService
             Email = email
         }, cancellationToken);
         return true;
+    }
+
+    public async Task<bool> SendSms(string PhoneNumber, string message)
+    {
+        var smsRequest = new
+        {
+            username = "902162351556",
+            password = "LVF!856qxy", // Şifrenizi buraya ekleyin
+            valid_for = "00:01",
+            messages = new[]
+                {
+                    new
+                    {
+                        msg = message,
+                        dest = PhoneNumber,
+                    },
+                }
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(smsRequest);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using (var httpClient = new HttpClient())
+        {
+            var apiUrl = "https://sms.verimor.com.tr/v2/send.json";
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var response = await httpClient.PostAsync(apiUrl, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 }
