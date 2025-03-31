@@ -52,8 +52,6 @@ public class AuthService : IAuthService
 
         var sms = await SendSms(phone, messgae);
 
-        if (!sms) return false;
-
         await _eventBusManager.LoginOtpRequestedAsync(userId, phone, otpEntity.Otp, isRegistered, cancellationToken);
         return await _smsProviderFactory.SendSms(phone, messagePayload, cancellationToken);
     }
@@ -250,7 +248,7 @@ public class AuthService : IAuthService
         return true;
     }
 
-    public async Task<bool> SendSms(string PhoneNumber, string message)
+    public async Task<string> SendSms(string PhoneNumber, string message,CancellationToken cancellationToken = default)
     {
         var smsRequest = new
         {
@@ -279,10 +277,12 @@ public class AuthService : IAuthService
 
             if (response.IsSuccessStatusCode)
             {
-                return true;
+                return "";
             }
 
-            return false;
+            var errorResponse = await response.Content.ReadAsStringAsync();
+
+            return errorResponse;
         }
     }
 }
