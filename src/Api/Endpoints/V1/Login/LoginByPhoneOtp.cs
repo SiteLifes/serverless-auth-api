@@ -32,7 +32,7 @@ public class LoginByPhoneOtp : IEndpoint
             {
                 Status = StatusCodes.Status404NotFound,
                 Title = "Hata!",
-                Detail = "Telefon numarası bulunamadı"
+                Detail = "Telefon numarası bulunamadı."
             });
 
         var result = await authService.SendLoginOtpAsync(userId, request.Phone, apiContext.Culture,isRegistered, cancellationToken);
