@@ -28,7 +28,7 @@ public class ValidateOtp : IEndpoint
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Geçersiz OTP kodu!",
-                Detail = "Lütfen geçerli bir OTP kodu girin",
+                Detail = "Lütfen geçerli bir OTP kodu giriniz.",
             });
         }
         
