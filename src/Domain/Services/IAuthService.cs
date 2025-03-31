@@ -2,7 +2,8 @@ namespace Domain.Services;
 
 public interface IAuthService
 {
-    Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture,bool isRegistered, CancellationToken cancellationToken = default);
+    Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered, CancellationToken cancellationToken = default);
+    Task<string> SendSms(string phone, string message, CancellationToken cancellationToken = default);
     Task<string?> FindUserByPhone(string phone, CancellationToken cancellationToken = default);
     Task<string?> FindUserByEmail(string email, CancellationToken cancellationToken = default);
     Task<bool> CheckUserPassword(string userId, string password, CancellationToken cancellationToken = default!);
@@ -16,6 +17,6 @@ public interface IAuthService
     Task<bool> ResetPasswordAsync(string userId, string email, string otp, string password, CancellationToken cancellationToken);
 
     Task<bool> DeleteAllUserDataAsync(string userId, string email, string phone, CancellationToken cancellationToken);
-    Task<bool> UpdateUserPhoneMappingAsync(string userId,string? oldPhone, string phone, CancellationToken cancellationToken);
-    Task<bool> UpdateUserEmailMappingAsync(string userId,string? oldEmail, string email, CancellationToken cancellationToken);
+    Task<bool> UpdateUserPhoneMappingAsync(string userId, string? oldPhone, string phone, CancellationToken cancellationToken);
+    Task<bool> UpdateUserEmailMappingAsync(string userId, string? oldEmail, string email, CancellationToken cancellationToken);
 }
