@@ -11,14 +11,14 @@ public class SmsProviderFactory : ISmsProviderFactory
         _otpProviders = otpProviders;
     }
 
-    private ISmsProvider Instance(string phoneNumber)
+    private ISmsProvider Instance()
     {
-        return _otpProviders.First();
+        return _otpProviders.ToList()[1];
     }
 
     public async Task<bool> SendSms(string phone, string message, CancellationToken cancellationToken)
     {
-        var instance = Instance(phone);
+        var instance = Instance();
         return await instance.SendSms(phone, message, cancellationToken);
     }
 }

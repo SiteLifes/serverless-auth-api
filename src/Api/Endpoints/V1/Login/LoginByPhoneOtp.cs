@@ -37,11 +37,8 @@ public class LoginByPhoneOtp : IEndpoint
 
         var result = await authService.SendLoginOtpAsync(userId, request.Phone, apiContext.Culture,isRegistered, cancellationToken);
 
-        string error = "";
 
-        if(!result) error = await authService.SendSms(request.Phone, "test", cancellationToken);
-
-        return Results.Ok(new LoginByPhoneResponse(request.Phone, isRegistered, result, error));
+        return Results.Ok(new LoginByPhoneResponse(request.Phone, isRegistered, result));
     }
 
     public RouteHandlerBuilder MapEndpoint(IEndpointRouteBuilder endpoints)
@@ -55,7 +52,7 @@ public class LoginByPhoneOtp : IEndpoint
 
     public record LoginByPhoneRequest(string Phone, string CaptchaToken);
 
-    public record LoginByPhoneResponse(string Phone, bool IsRegistered, bool OtpSent, string ErrorMessage);
+    public record LoginByPhoneResponse(string Phone, bool IsRegistered, bool OtpSent);
 
     public class LoginByPhoneRequestValidator : AbstractValidator<LoginByPhoneRequest>
     {

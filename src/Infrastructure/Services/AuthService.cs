@@ -42,17 +42,11 @@ public class AuthService : IAuthService
         var otpEntity = await _authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken);
         var message = await _messageService.GetMessageAsync(culture, MessageKeys.OTPSms, cancellationToken);
 
-        var messagePayload = $"Code {otpEntity.Otp}";
+        var messagePayload = $"SiteLifes giriş şifreniz : {otpEntity.Otp}";
         if (message != null)
         {
             messagePayload = string.Format(message.Message, otpEntity.Otp);
         }
-
-        string messgae = $"SiteLifes giris sifreniz : {otpEntity.Otp}. Lutfen kimseyle paylasmayiniz.";
-
-        var sms = await SendSms(phone, messgae);
-
-        if(sms != "") return false;
 
         await _eventBusManager.LoginOtpRequestedAsync(userId, phone, otpEntity.Otp, isRegistered, cancellationToken);
         return await _smsProviderFactory.SendSms(phone, messagePayload, cancellationToken);
