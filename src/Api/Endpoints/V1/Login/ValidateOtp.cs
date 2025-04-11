@@ -20,7 +20,7 @@ public class ValidateOtp : IEndpoint
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
         
-        var phone = request.Key.Replace("","");
+        var phone = request.Key.Replace("+90","");
 
         var result = await authService.VerifyOtpAsync(phone, request.Otp, cancellationToken);
       
