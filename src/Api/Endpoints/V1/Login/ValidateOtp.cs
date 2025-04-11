@@ -19,8 +19,10 @@ public class ValidateOtp : IEndpoint
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
+        
+        var phone = request.Key.Replace("","");
 
-        var result = await authService.VerifyOtpAsync(request.Key, request.Otp, cancellationToken);
+        var result = await authService.VerifyOtpAsync(phone, request.Otp, cancellationToken);
       
         if (!result)
         {
@@ -32,7 +34,7 @@ public class ValidateOtp : IEndpoint
             });
         }
         
-        var userId = await authService.FindUserByPhone(request.Key, cancellationToken);
+        var userId = await authService.FindUserByPhone(phone, cancellationToken);
         if (string.IsNullOrEmpty(userId))
         {
             return Results.NotFound();
