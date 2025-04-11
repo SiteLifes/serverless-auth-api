@@ -24,7 +24,8 @@ public class LoginByPhoneOtp : IEndpoint
             return Results.BadRequest(new Dictionary<string, string> {{"Captcha", "Captcha is not valid"}});
 
 
-        var userId = await authService.FindUserByPhone(request.Phone, cancellationToken);
+        var phone = request.Phone.Replace("+90","");
+        var userId = await authService.FindUserByPhone(phone, cancellationToken);
         var isRegistered = !string.IsNullOrEmpty(userId);
 
         if (!isRegistered)
@@ -35,10 +36,10 @@ public class LoginByPhoneOtp : IEndpoint
                 Detail = "Telefon numarası bulunamadı."
             });
 
-        var result = await authService.SendLoginOtpAsync(userId, request.Phone, apiContext.Culture,isRegistered, cancellationToken);
+        var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture,isRegistered, cancellationToken);
 
 
-        return Results.Ok(new LoginByPhoneResponse(request.Phone, isRegistered, result));
+        return Results.Ok(new LoginByPhoneResponse(phone, isRegistered, result));
     }
 
     public RouteHandlerBuilder MapEndpoint(IEndpointRouteBuilder endpoints)
