@@ -21,7 +21,7 @@ public class NetGsmSmsProvider : ISmsProvider
         var userName = _netGsmOptionsSnapshot.Value.Username;
         var password = _netGsmOptionsSnapshot.Value.Password;
         var sender = _netGsmOptionsSnapshot.Value.From;
-        var url = @$"https://api.netgsm.com.tr/sms/send/get/?usercode=08503053487&password=Kisshe1234*&gsmno={phone}&message={message}&msgheader=08503053487";
+        var url = @$"https://api.netgsm.com.tr/sms/send/get/?usercode=8508402875&password=3B73-6E&gsmno={phone}&message={message}&msgheader=SITELIFES";
         var request = (HttpWebRequest) WebRequest.Create(url);
         request.AutomaticDecompression = DecompressionMethods.GZip;
         using var response = (HttpWebResponse) request.GetResponse();
