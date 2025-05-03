@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Domain.Options;
 using Domain.Services;
 using Microsoft.Extensions.Options;
@@ -18,16 +19,14 @@ public class NetGsmSmsProvider : ISmsProvider
     {
         if (!_netGsmOptionsSnapshot.Value.IsEnabled)
             return true;
-        var userName = _netGsmOptionsSnapshot.Value.Username;
-        var password = _netGsmOptionsSnapshot.Value.Password;
-        var sender = _netGsmOptionsSnapshot.Value.From;
-        var url = @$"https://api.netgsm.com.tr/sms/send/get/?usercode=8508402875&password=3B73-6E&gsmno={phone}&message={message}&msgheader=SITELIFES";
-        var request = (HttpWebRequest) WebRequest.Create(url);
-        request.AutomaticDecompression = DecompressionMethods.GZip;
-        using var response = (HttpWebResponse) request.GetResponse();
-        await using var stream = response.GetResponseStream();
-        using var reader = new StreamReader(stream);
-        var html = await reader.ReadToEndAsync();
-        return html.StartsWith("00");
+        
+        var url = "https://api.netgsm.com.tr/sms/send/otp";
+        var xmlData = $"<mainbody><header><usercode>8508402875</usercode><password>3B73-6E</password><msgheader>SITELIFES</msgheader></header><body><msg>{message}</msg><no>{phone}</no></body></mainbody>";
+        var content = new StringContent(xmlData, Encoding.UTF8, "application/xml");
+        HttpClient _httpClient = new HttpClient();
+        var response = await _httpClient.PostAsync(url, content);
+        response.EnsureSuccessStatusCode();
+        var responseBody = await response.Content.ReadAsStringAsync();
+        return true;
     }
 }
