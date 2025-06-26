@@ -56,6 +56,17 @@ builder.Services.AddSwaggerGen(option =>
 });
 builder.Services.AddScoped<ApiKeyValidatorMiddleware>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+            .AllowAnyOrigin()   // Tüm kaynaklara izin ver
+            .AllowAnyMethod()   // GET, POST, PUT, DELETE vs.
+            .AllowAnyHeader();  // Tüm headerlara izin ver
+    });
+});
+
 
 var option = builder.Configuration.GetAWSOptions();
 builder.Services.AddDefaultAWSOptions(option);
@@ -74,6 +85,7 @@ if (!app.Environment.IsDevelopment())
         exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
 }
 
+app.UseCors("AllowAll");
 app.UseMiddleware<ApiKeyValidatorMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthorization();
