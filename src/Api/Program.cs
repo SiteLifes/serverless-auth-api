@@ -15,6 +15,16 @@ builder.Services.AddHttpContextAccessor();
 // Add services to the container.
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Logging.ClearProviders();
 // Serilog configuration        
 var logger = new LoggerConfiguration()
@@ -56,18 +66,6 @@ builder.Services.AddSwaggerGen(option =>
 });
 builder.Services.AddScoped<ApiKeyValidatorMiddleware>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy
-            .AllowAnyOrigin()   // Tüm kaynaklara izin ver
-            .AllowAnyMethod()   // GET, POST, PUT, DELETE vs.
-            .AllowAnyHeader();  // Tüm headerlara izin ver
-    });
-});
-
-
 var option = builder.Configuration.GetAWSOptions();
 builder.Services.AddDefaultAWSOptions(option);
 var app = builder.Build();
@@ -85,8 +83,11 @@ if (!app.Environment.IsDevelopment())
         exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
 }
 
-app.UseCors("AllowAll");
+
 app.UseMiddleware<ApiKeyValidatorMiddleware>();
+
+app.UseCors();
+
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapEndpointsCore(AppDomain.CurrentDomain.GetAssemblies());
