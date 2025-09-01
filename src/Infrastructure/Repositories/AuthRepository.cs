@@ -38,6 +38,12 @@ public class AuthRepository : DynamoRepository, IAuthRepository
 
         return entity;
     }
+    
+    public async Task<OtpEntity?> GetLoginAsync(string phone, CancellationToken cancellationToken = default)
+    {
+        var entity = await GetAllAsync<OtpEntity>(OtpEntity.GetPk(phone), cancellationToken);
+        return entity.FirstOrDefault();
+    }
 
     public async Task<OtpEntity> CreateForgotPasswordOtpAsync(string? userId, string email, string otp, CancellationToken cancellationToken = default)
     {
