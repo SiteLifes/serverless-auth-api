@@ -22,14 +22,17 @@ public class AnyLogin : IEndpoint
             return Results.BadRequest(validationResult.ToDictionary());
         
         var result = await repository.GetLoginAsync(request.userId, cancellationToken);
-        bool exists = result is not null;
-        return Results.Ok(exists);
+
+        if (result is null)
+            return Results.BadRequest();
+        
+        return Results.Ok();
     }
 
     public RouteHandlerBuilder MapEndpoint(IEndpointRouteBuilder endpoints)
     {
         return endpoints.MapPost("v1/login/any-login", Handler)
-            .Produces200<bool>()
+            .Produces200()
             .WithTags("Login");
     }
 
