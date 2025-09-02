@@ -21,9 +21,7 @@ public class AnyLogin : IEndpoint
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
         
-        var phone = request.phone.Replace("+90","");
-
-        var result = await repository.GetLoginAsync(phone, cancellationToken);
+        var result = await repository.GetLoginAsync(request.userId, cancellationToken);
         bool exists = result is not null;
         return Results.Ok(exists);
     }
@@ -35,13 +33,13 @@ public class AnyLogin : IEndpoint
             .WithTags("Login");
     }
 
-    public record AnyLoginRequestModel(string phone);
+    public record AnyLoginRequestModel(string userId);
 
     public class AnyLoginRequestModelValidator : AbstractValidator<AnyLoginRequestModel>
     {
         public AnyLoginRequestModelValidator()
         {
-            RuleFor(q => q.phone).NotEmpty();
+            RuleFor(q => q.userId).NotEmpty();
         }
     }
 }

@@ -8,9 +8,7 @@ public interface IAuthRepository
     Task<OtpEntity> CreateLoginOtpAsync(string? userId, string phone, CancellationToken cancellationToken = default);
 
     Task<OtpEntity?> GetLoginOtpAsync(string phone, string code, CancellationToken cancellationToken = default);
-    Task<OtpEntity?> GetLoginAsync(string phone, CancellationToken cancellationToken = default);
-
-
+    Task<RefreshTokenUserMapping?> GetLoginAsync(string userId, CancellationToken cancellationToken = default);
     Task<OtpEntity> CreateForgotPasswordOtpAsync(string? userId, string email, string otp, CancellationToken cancellationToken = default);
 
     Task<OtpEntity?> GetForgotPasswordOtpAsync(string email, string code, CancellationToken cancellationToken = default);

@@ -39,9 +39,9 @@ public class AuthRepository : DynamoRepository, IAuthRepository
         return entity;
     }
     
-    public async Task<OtpEntity?> GetLoginAsync(string phone, CancellationToken cancellationToken = default)
+    public async Task<RefreshTokenUserMapping?> GetLoginAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var entity = await GetAllAsync<OtpEntity>(OtpEntity.GetPk(phone), cancellationToken);
+        var entity = await GetAllAsync<RefreshTokenUserMapping>(RefreshTokenUserMapping.GetPk(userId), cancellationToken);
         return entity.FirstOrDefault();
     }
 

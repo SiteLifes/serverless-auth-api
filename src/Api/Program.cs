@@ -1,9 +1,11 @@
 using System.Reflection;
 using Api.Infrastructure.Extensions;
 using Api.Infrastructure.Middleware;
+using Domain.Repositories;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Infrastructure.Extensions;
+using Infrastructure.Repositories;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
@@ -42,6 +44,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<AuthRepository>();
 builder.Services.AddSwaggerGen(option =>
 {
     option.CustomOperationIds(e =>
