@@ -167,6 +167,6 @@ public class AuthRepository : DynamoRepository, IAuthRepository
 
     protected override string GetTableName()
     {
-        return $"auth";
+        return GetEnvironmentTableName("auth");
     }
 }

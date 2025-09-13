@@ -22,10 +22,8 @@ public class MessageRepository : DynamoRepository, IMessageRepository
     {
         return await SaveAsync(entity, cancellationToken);
     }
-
-
     protected override string GetTableName()
     {
-        return "auth";
+        return GetEnvironmentTableName("auth");
     }
 }
