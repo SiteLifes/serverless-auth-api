@@ -1,47 +1,50 @@
-name: API Deployer PROD
+name: API Deployer
+
 on:
   push:
     branches: 
       - main
-  
+      - test
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      LambdaName: AuthApiLambdaFunction
     strategy:
       matrix:
         dotnet: [ '8.0.x' ]
     
-    name:  API Deployer PROD  BUILD
+    name: API Deployer BUILD
+
+    env:
+      LambdaName: ${{ github.ref == 'refs/heads/main' && 'AuthApiLambdaFunction' || 'AuthApiTestLambdaFunction' }}
 
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '8.0.x'
-      
-    
+          dotnet-version: ${{ matrix.dotnet }}
+
       - name: Build
         run: dotnet build --configuration Release
-        
+
       - name: Publish
-        run: dotnet publish -c Release 
+        run: dotnet publish -c Release
+
       - name: Install Zip
         uses: montudor/action-zip@v0.1.0
-        
+
       - name: Zip Publish Output
         run: zip -qq -r ./bundle.zip ./
         working-directory: src/Api/bin/Release/net8.0/publish
-        
-          
-      - name: deploy by aws cli
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
-            
+
       - name: AWS Deploy
         run: |
           aws lambda update-function-code --function-name ${{ env.LambdaName }} --zip-file fileb://src/Api/bin/Release/net8.0/publish/bundle.zip
