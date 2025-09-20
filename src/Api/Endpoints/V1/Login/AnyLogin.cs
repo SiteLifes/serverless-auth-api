@@ -20,12 +20,12 @@ public class AnyLogin : IEndpoint
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
-        
+
         var result = await repository.GetUserLoginAsync(request.userId, cancellationToken);
 
-        if (result is null)
+        if (result is null || result.Count == 0)
             return Results.BadRequest();
-        
+
         return Results.Ok();
     }
 
