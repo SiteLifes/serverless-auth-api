@@ -21,7 +21,7 @@ public class AnyLogin : IEndpoint
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
         
-        var result = await repository.GetLoginAsync(request.userId, cancellationToken);
+        var result = await repository.GetUserLoginAsync(request.userId, cancellationToken);
 
         if (result is null)
             return Results.BadRequest();

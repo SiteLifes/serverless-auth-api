@@ -1,6 +1,8 @@
 using Api.Infrastructure.Contract;
 using Api.Infrastructure.Extensions;
 using Domain.Domains;
+using Domain.Entities;
+using Domain.Repositories;
 using Domain.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +14,7 @@ public class ValidateOtp : IEndpoint
     private static async Task<IResult> Handler(
         [FromBody] ValidateOtpRequestModel request,
         [FromServices] IAuthService authService,
+        [FromServices] IAuthRepository repository,
         [FromServices] IJwtService jwtService,
         [FromServices] IValidator<ValidateOtpRequestModel> validator,
         CancellationToken cancellationToken)
@@ -19,11 +22,11 @@ public class ValidateOtp : IEndpoint
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
-        
-        var phone = request.Key.Replace("+90","");
+
+        var phone = request.Key.Replace("+90", "");
 
         var result = await authService.VerifyOtpAsync(phone, request.Otp, cancellationToken);
-      
+
         if (!result)
         {
             return Results.Problem(new ProblemDetails
@@ -33,13 +36,14 @@ public class ValidateOtp : IEndpoint
                 Detail = "Lütfen geçerli bir OTP kodu giriniz.",
             });
         }
-        
+
         var userId = await authService.FindUserByPhone(phone, cancellationToken);
         if (string.IsNullOrEmpty(userId))
         {
             return Results.NotFound();
         }
-
+        
+        repository.UserLoginAsync(new UserLoginEntity { UserId = userId }, cancellationToken);
         var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken);
 
         return Results.Ok(jwt);

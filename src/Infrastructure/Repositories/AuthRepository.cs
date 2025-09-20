@@ -164,6 +164,16 @@ public class AuthRepository : DynamoRepository, IAuthRepository
     {
         await BatchWriteAsync(new List<IEntity>(), entities, cancellationToken);
     }
+    
+    public async Task UserLoginAsync(UserLoginEntity entity, CancellationToken cancellationToken = default)
+    {
+        await SaveAsync(entity, cancellationToken);
+    }
+    
+    public async Task<List<UserLoginEntity>> GetUserLoginAsync(string userId, CancellationToken cancellationToken)
+    {
+        return await GetAllAsync<UserLoginEntity>(UserLoginEntity.GetPk(userId), cancellationToken);
+    }
 
     protected override string GetTableName()
     {
