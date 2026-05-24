@@ -27,7 +27,17 @@ public class ValidateOtp : IEndpoint
 
         var result = await authService.VerifyOtpAsync(phone, request.Otp, cancellationToken);
 
-        if (!result)
+        if (result.IsLocked)
+        {
+            return Results.Problem(new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Çok fazla hatalı OTP denemesi.",
+                Detail = "Lütfen kısa bir süre sonra tekrar deneyiniz.",
+            });
+        }
+
+        if (!result.IsSuccess)
         {
             return Results.Problem(new ProblemDetails
             {
@@ -43,7 +53,7 @@ public class ValidateOtp : IEndpoint
             return Results.NotFound();
         }
         
-        repository.UserLoginAsync(new UserLoginEntity { UserId = userId }, cancellationToken);
+        await repository.UserLoginAsync(new UserLoginEntity { UserId = userId }, cancellationToken);
         var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken);
 
         return Results.Ok(jwt);

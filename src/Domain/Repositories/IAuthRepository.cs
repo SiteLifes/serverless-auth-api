@@ -15,6 +15,10 @@ public interface IAuthRepository
     Task<OtpEntity?> GetForgotPasswordOtpAsync(string email, string code,
         CancellationToken cancellationToken = default);
 
+    Task<OtpAttemptEntity?> GetOtpAttemptAsync(string key, CancellationToken cancellationToken = default);
+    Task<OtpAttemptEntity> UpsertOtpAttemptAsync(OtpAttemptEntity entity, CancellationToken cancellationToken = default);
+    Task DeleteOtpAttemptAsync(string key, CancellationToken cancellationToken = default);
+
     Task<RefreshTokenEntity> CreateRefreshTokenAsync(RefreshTokenEntity entity,
         CancellationToken cancellationToken = default);
 

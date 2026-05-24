@@ -20,7 +20,12 @@ public class ValidateOtp : IEndpoint
             return Results.BadRequest(validationResult.ToDictionary());
 
         var result = await authService.VerifyOtpAsync(request.Key, request.Otp, cancellationToken);
-        if (!result)
+        if (result.IsLocked)
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
+        if (!result.IsSuccess)
         {
             return Results.NotFound();
         }

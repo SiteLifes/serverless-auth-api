@@ -50,6 +50,7 @@ public static class StartupExtensions
         service.Configure<EventBusSettings>(configuration.GetSection("EventBusSettings"));
         service.Configure<GoogleAuthOptions>(configuration.GetSection("GoogleAuthOptions"));
         service.Configure<MicrosoftAuthOptions>(configuration.GetSection("MicrosoftAuthOptions"));
+        service.Configure<OtpSecurityOptions>(configuration.GetSection("OtpSecurity"));
 
 
         configuration.AddSystemsManager(config =>

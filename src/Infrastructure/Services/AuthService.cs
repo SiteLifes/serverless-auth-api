@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Domain.Constants;
+using Domain.Domains;
 using Domain.Entities;
 using Domain.Entities.Base;
 using Domain.Options;
@@ -12,6 +13,9 @@ namespace Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
+    private const string ReviewBypassPhone = "5555555555";
+    private const string ReviewBypassOtp = "11111";
+
     private readonly IAuthRepository _authRepository;
     private readonly IOptionsSnapshot<JwtOptions> _jwtOptionsSnapshot;
     private readonly IOptionsSnapshot<AllowedPhonesOptions> _allowedPhonesOptions;
@@ -20,11 +24,13 @@ public class AuthService : IAuthService
     private readonly ICryptoService _cryptoService;
     private readonly IEventBusManager _eventBusManager;
     private readonly HttpClient _httpClient;
+    private readonly IOptionsSnapshot<OtpSecurityOptions> _otpSecurityOptions;
 
 
     public AuthService(IAuthRepository authRepository, IOptionsSnapshot<JwtOptions> jwtOptionsSnapshot,
         IMessageService messageService, ISmsProviderFactory smsProviderFactory, ICryptoService cryptoService,
-        IOptionsSnapshot<AllowedPhonesOptions> allowedPhonesOptions, IEventBusManager eventBusManager, HttpClient httpClient)
+        IOptionsSnapshot<AllowedPhonesOptions> allowedPhonesOptions, IEventBusManager eventBusManager,
+        HttpClient httpClient, IOptionsSnapshot<OtpSecurityOptions> otpSecurityOptions)
     {
         _authRepository = authRepository;
         _jwtOptionsSnapshot = jwtOptionsSnapshot;
@@ -34,6 +40,7 @@ public class AuthService : IAuthService
         _allowedPhonesOptions = allowedPhonesOptions;
         _eventBusManager = eventBusManager;
         _httpClient = httpClient;
+        _otpSecurityOptions = otpSecurityOptions;
     }
 
     public async Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
@@ -72,19 +79,22 @@ public class AuthService : IAuthService
         return entity?.Password == _cryptoService.HashPassword(password);
     }
 
-    public async Task<bool> VerifyOtpAsync(string phone, string otp, CancellationToken cancellationToken)
+    public async Task<OtpVerificationResult> VerifyOtpAsync(string phone, string otp, CancellationToken cancellationToken)
     {
-        var entity = await _authRepository.GetLoginOtpAsync(phone, otp, cancellationToken);
-        
-        if (entity == null)
+        if (IsReviewBypass(phone, otp))
         {
-            if (phone == "5555555555" && otp == "11111")
-            {
-                return true;
-            }
+            return OtpVerificationResult.Success();
         }
 
-        return entity != null;
+        return await VerifyOtpCoreAsync($"login:{phone}",
+            () => _authRepository.GetLoginOtpAsync(phone, otp, cancellationToken), cancellationToken);
+    }
+
+    public async Task<OtpVerificationResult> VerifyForgotPasswordOtpAsync(string email, string otp,
+        CancellationToken cancellationToken = default)
+    {
+        return await VerifyOtpCoreAsync($"password-reset:{email}",
+            () => _authRepository.GetForgotPasswordOtpAsync(email, otp, cancellationToken), cancellationToken);
     }
 
     public async Task CreateRefreshTokenAsync(string userId, string token, CancellationToken cancellationToken)
@@ -149,13 +159,54 @@ public class AuthService : IAuthService
     public async Task<bool> ResetPasswordAsync(string userId, string email, string otp, string password,
         CancellationToken cancellationToken)
     {
-        var otpEntity = await _authRepository.GetForgotPasswordOtpAsync(email, otp, cancellationToken);
-        if (otpEntity == null)
+        var otpVerificationResult = await VerifyForgotPasswordOtpAsync(email, otp, cancellationToken);
+        if (!otpVerificationResult.IsSuccess)
         {
             return false;
         }
         await CreatePasswordUserMapping(userId, password, cancellationToken);
         return true;
+    }
+
+    private async Task<OtpVerificationResult> VerifyOtpCoreAsync(string attemptKey,
+        Func<Task<OtpEntity?>> verifyOtpFunc, CancellationToken cancellationToken)
+    {
+        var attempts = await _authRepository.GetOtpAttemptAsync(attemptKey, cancellationToken) ?? new OtpAttemptEntity
+        {
+            Key = attemptKey,
+            FailedAttempts = 0
+        };
+
+        var now = DateTime.UtcNow;
+        if (attempts.LockedUntilUtc.HasValue && attempts.LockedUntilUtc.Value > now)
+        {
+            return OtpVerificationResult.Locked();
+        }
+
+        if (attempts.LockedUntilUtc.HasValue && attempts.LockedUntilUtc.Value <= now)
+        {
+            attempts.LockedUntilUtc = null;
+            attempts.FailedAttempts = 0;
+            await _authRepository.UpsertOtpAttemptAsync(attempts, cancellationToken);
+        }
+
+        var otpEntity = await verifyOtpFunc();
+        if (otpEntity != null)
+        {
+            await _authRepository.DeleteOtpAttemptAsync(attemptKey, cancellationToken);
+            return OtpVerificationResult.Success();
+        }
+
+        attempts.FailedAttempts++;
+        if (attempts.FailedAttempts >= _otpSecurityOptions.Value.MaxFailedAttempts)
+        {
+            attempts.LockedUntilUtc = now.AddMinutes(_otpSecurityOptions.Value.LockoutMinutes);
+            await _authRepository.UpsertOtpAttemptAsync(attempts, cancellationToken);
+            return OtpVerificationResult.Locked();
+        }
+
+        await _authRepository.UpsertOtpAttemptAsync(attempts, cancellationToken);
+        return OtpVerificationResult.Invalid();
     }
 
     public async Task<bool> DeleteAllUserDataAsync(string userId, string email, string phone,
@@ -200,6 +251,13 @@ public class AuthService : IAuthService
 
         await _authRepository.BatchDeleteAsync(entities, cancellationToken);
         return true;
+    }
+
+    private bool IsReviewBypass(string phone, string otp)
+    {
+        return _otpSecurityOptions.Value.OnReview &&
+               phone == ReviewBypassPhone &&
+               otp == ReviewBypassOtp;
     }
 
     public async Task<bool> UpdateUserPhoneMappingAsync(string userId, string? oldPhone, string phone,

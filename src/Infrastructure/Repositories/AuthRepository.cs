@@ -71,6 +71,23 @@ public class AuthRepository : DynamoRepository, IAuthRepository
         return entity;
     }
 
+    public async Task<OtpAttemptEntity?> GetOtpAttemptAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return await GetAsync<OtpAttemptEntity>(OtpAttemptEntity.GetPk(key), OtpAttemptEntity.GetSk(), cancellationToken);
+    }
+
+    public async Task<OtpAttemptEntity> UpsertOtpAttemptAsync(OtpAttemptEntity entity,
+        CancellationToken cancellationToken = default)
+    {
+        await SaveAsync(entity, cancellationToken);
+        return entity;
+    }
+
+    public async Task DeleteOtpAttemptAsync(string key, CancellationToken cancellationToken = default)
+    {
+        await DeleteAsync(OtpAttemptEntity.GetPk(key), OtpAttemptEntity.GetSk(), cancellationToken);
+    }
+
     public async Task<RefreshTokenEntity> CreateRefreshTokenAsync(RefreshTokenEntity entity, CancellationToken cancellationToken = default)
     {
         await SaveAsync(entity, cancellationToken);
