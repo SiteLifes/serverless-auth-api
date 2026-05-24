@@ -12,6 +12,7 @@ public class Otp : IEndpoint
         [FromServices] IAuthService authService,
         [FromServices] IApiContext apiContext,
         [FromServices] IValidator<LoginByPhoneOtp.LoginByPhoneRequest> validator,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -30,9 +31,19 @@ public class Otp : IEndpoint
                 Detail = "Yetkili Telefon numarası sistemde kayıtlıdır. İlginiz için teşekkür ederiz. "
             });
 
-        var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture,true, cancellationToken);
+        var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture, true,
+            apiContext.IpAddress, cancellationToken);
 
-        return Results.Ok(new LoginByPhoneOtp.LoginByPhoneResponse(phone, isRegistered, result));
+        if (result.IsRateLimited)
+        {
+            httpContext.Response.Headers.RetryAfter = result.RetryAfterSeconds.ToString();
+            return Results.Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Çok fazla istek",
+                detail: $"Lütfen {result.RetryAfterSeconds} saniye sonra tekrar deneyin.");
+        }
+
+        return Results.Ok(new LoginByPhoneOtp.LoginByPhoneResponse(phone, isRegistered, result.IsSuccess));
     }
 
     public RouteHandlerBuilder MapEndpoint(IEndpointRouteBuilder endpoints)
@@ -40,6 +51,7 @@ public class Otp : IEndpoint
         return endpoints.MapPost("v1/login/apply/otp", Handler)
             .Produces<LoginByPhoneOtp.LoginByPhoneResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .WithTags("Login");
     }

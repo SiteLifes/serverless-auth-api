@@ -13,6 +13,7 @@ public class LoginByPhoneOtp : IEndpoint
         [FromServices] IApiContext apiContext,
         [FromServices] ICaptchaService captchaService,
         [FromServices] IValidator<LoginByPhoneRequest> validator,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -36,10 +37,20 @@ public class LoginByPhoneOtp : IEndpoint
                 Detail = "Telefon numaranıza kayıtlı bir site bulunamadı."
             });
 
-        var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture,isRegistered, cancellationToken);
+        var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture, isRegistered,
+            apiContext.IpAddress, cancellationToken);
+
+        if (result.IsRateLimited)
+        {
+            httpContext.Response.Headers.RetryAfter = result.RetryAfterSeconds.ToString();
+            return Results.Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Çok fazla istek",
+                detail: $"Lütfen {result.RetryAfterSeconds} saniye sonra tekrar deneyin.");
+        }
 
 
-        return Results.Ok(new LoginByPhoneResponse(phone, isRegistered, result));
+        return Results.Ok(new LoginByPhoneResponse(phone, isRegistered, result.IsSuccess));
     }
 
     public RouteHandlerBuilder MapEndpoint(IEndpointRouteBuilder endpoints)
@@ -47,6 +58,7 @@ public class LoginByPhoneOtp : IEndpoint
         return endpoints.MapPost("v1/login/phone/otp", Handler)
             .Produces<LoginByPhoneResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .WithTags("Login");
     }

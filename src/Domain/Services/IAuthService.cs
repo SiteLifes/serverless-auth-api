@@ -4,7 +4,8 @@ namespace Domain.Services;
 
 public interface IAuthService
 {
-    Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered, CancellationToken cancellationToken = default);
+    Task<OtpSendResult> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
+        string? ipAddress, CancellationToken cancellationToken = default);
     Task<string> SendSms(string phone, string message, CancellationToken cancellationToken = default);
     Task<string?> FindUserByPhone(string phone, CancellationToken cancellationToken = default);
     Task<string?> FindUserByEmail(string email, CancellationToken cancellationToken = default);

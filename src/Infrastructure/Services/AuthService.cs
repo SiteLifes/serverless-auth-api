@@ -43,9 +43,15 @@ public class AuthService : IAuthService
         _otpSecurityOptions = otpSecurityOptions;
     }
 
-    public async Task<bool> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
-        CancellationToken cancellationToken = default)
+    public async Task<OtpSendResult> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
+        string? ipAddress, CancellationToken cancellationToken = default)
     {
+        var sendRateLimitResult = await EnforceOtpSendRateLimitAsync(phone, ipAddress, cancellationToken);
+        if (!sendRateLimitResult.IsSuccess)
+        {
+            return sendRateLimitResult;
+        }
+
         var otpEntity = await _authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken);
         var message = await _messageService.GetMessageAsync(culture, MessageKeys.OTPSms, cancellationToken);
 
@@ -56,7 +62,8 @@ public class AuthService : IAuthService
         }
 
         await _eventBusManager.LoginOtpRequestedAsync(userId, phone, otpEntity.Otp, isRegistered, cancellationToken);
-        return await _smsProviderFactory.SendSms(phone, messagePayload, cancellationToken);
+        var smsSent = await _smsProviderFactory.SendSms(phone, messagePayload, cancellationToken);
+        return smsSent ? OtpSendResult.Success() : new OtpSendResult { IsSuccess = false };
     }
 
     public async Task<string?> FindUserByPhone(string phone, CancellationToken cancellationToken)
@@ -258,6 +265,61 @@ public class AuthService : IAuthService
         return _otpSecurityOptions.Value.OnReview &&
                phone == ReviewBypassPhone &&
                otp == ReviewBypassOtp;
+    }
+
+    private async Task<OtpSendResult> EnforceOtpSendRateLimitAsync(string phone, string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var phoneAttemptResult = await CheckOtpSendAttemptAsync(
+            $"otp-send:phone:{phone}",
+            _otpSecurityOptions.Value.MaxSendAttemptsPerPhoneWindow,
+            _otpSecurityOptions.Value.SendWindowMinutes,
+            cancellationToken);
+
+        if (!phoneAttemptResult.IsSuccess)
+        {
+            return phoneAttemptResult;
+        }
+
+        if (string.IsNullOrWhiteSpace(ipAddress))
+        {
+            return OtpSendResult.Success();
+        }
+
+        return await CheckOtpSendAttemptAsync(
+            $"otp-send:ip:{ipAddress}",
+            _otpSecurityOptions.Value.MaxSendAttemptsPerIpWindow,
+            _otpSecurityOptions.Value.SendWindowMinutes,
+            cancellationToken);
+    }
+
+    private async Task<OtpSendResult> CheckOtpSendAttemptAsync(string key, int maxAttempts, int windowMinutes,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var attempt = await _authRepository.GetOtpAttemptAsync(key, cancellationToken);
+
+        if (attempt == null || !attempt.LockedUntilUtc.HasValue || attempt.LockedUntilUtc.Value <= now)
+        {
+            await _authRepository.UpsertOtpAttemptAsync(new OtpAttemptEntity
+            {
+                Key = key,
+                FailedAttempts = 1,
+                LockedUntilUtc = now.AddMinutes(windowMinutes)
+            }, cancellationToken);
+
+            return OtpSendResult.Success();
+        }
+
+        if (attempt.FailedAttempts < maxAttempts)
+        {
+            attempt.FailedAttempts++;
+            await _authRepository.UpsertOtpAttemptAsync(attempt, cancellationToken);
+            return OtpSendResult.Success();
+        }
+
+        var retryAfter = (int)Math.Ceiling((attempt.LockedUntilUtc.Value - now).TotalSeconds);
+        return OtpSendResult.RateLimited(Math.Max(1, retryAfter));
     }
 
     public async Task<bool> UpdateUserPhoneMappingAsync(string userId, string? oldPhone, string phone,
