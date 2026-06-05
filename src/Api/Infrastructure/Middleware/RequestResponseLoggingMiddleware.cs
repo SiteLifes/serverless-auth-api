@@ -18,11 +18,13 @@ public sealed class RequestResponseLoggingMiddleware : IMiddleware
         var stopwatch = Stopwatch.StartNew();
 
         var requestBody = await ReadRequestBodyAsync(context.Request);
+        var clientMetadata = GetClientMetadata(context);
         _logger.LogInformation(
-            "HTTP Request {Method} {Path}{QueryString} Headers={Headers} Body={Body}",
+            "HTTP Request {Method} {Path}{QueryString} Client={Client} Headers={Headers} Body={Body}",
             context.Request.Method,
             context.Request.Path,
             context.Request.QueryString,
+            clientMetadata,
             ToSafeDictionary(context.Request.Headers),
             requestBody);
 
@@ -38,11 +40,12 @@ public sealed class RequestResponseLoggingMiddleware : IMiddleware
             stopwatch.Stop();
 
             _logger.LogInformation(
-                "HTTP Response {Method} {Path} Status={StatusCode} ElapsedMs={ElapsedMs} Headers={Headers} Body={Body}",
+                "HTTP Response {Method} {Path} Status={StatusCode} ElapsedMs={ElapsedMs} ClientIp={ClientIp} Headers={Headers} Body={Body}",
                 context.Request.Method,
                 context.Request.Path,
                 context.Response.StatusCode,
                 stopwatch.ElapsedMilliseconds,
+                clientMetadata["ClientIp"],
                 ToSafeDictionary(context.Response.Headers),
                 responseBody);
 
@@ -103,6 +106,54 @@ public sealed class RequestResponseLoggingMiddleware : IMiddleware
         return headers
             .Where(h => !IsSensitiveHeader(h.Key))
             .ToDictionary(h => h.Key, h => Truncate(h.Value.ToString()));
+    }
+
+    private static Dictionary<string, string> GetClientMetadata(HttpContext context)
+    {
+        var headers = context.Request.Headers;
+        var forwardedFor = headers["X-Forwarded-For"].ToString();
+        var realIp = headers["X-Real-IP"].ToString();
+        var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "<unknown>";
+
+        return new Dictionary<string, string>
+        {
+            ["ClientIp"] = GetClientIp(forwardedFor, realIp, remoteIp),
+            ["ForwardedFor"] = Truncate(string.IsNullOrWhiteSpace(forwardedFor) ? "<none>" : forwardedFor),
+            ["UserAgent"] = Truncate(GetHeaderOrDefault(headers, "User-Agent")),
+            ["DeviceModel"] = Truncate(GetHeaderOrDefault(headers, "Sec-CH-UA-Model")),
+            ["Platform"] = Truncate(GetHeaderOrDefault(headers, "Sec-CH-UA-Platform")),
+            ["BrowserBrands"] = Truncate(GetHeaderOrDefault(headers, "Sec-CH-UA")),
+            ["AcceptLanguage"] = Truncate(GetHeaderOrDefault(headers, "Accept-Language")),
+            ["Referer"] = Truncate(GetHeaderOrDefault(headers, "Referer"))
+        };
+    }
+
+    private static string GetClientIp(string forwardedFor, string realIp, string remoteIp)
+    {
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var firstForwardedIp = forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(firstForwardedIp))
+            {
+                return firstForwardedIp;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(realIp))
+        {
+            return realIp;
+        }
+
+        return remoteIp;
+    }
+
+    private static string GetHeaderOrDefault(IHeaderDictionary headers, string key)
+    {
+        return headers.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.ToString()
+            : "<none>";
     }
 
     private static bool IsSensitiveHeader(string headerName)

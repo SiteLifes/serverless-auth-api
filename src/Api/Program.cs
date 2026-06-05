@@ -6,6 +6,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Infrastructure.Extensions;
 using Infrastructure.Repositories;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
@@ -69,6 +70,12 @@ builder.Services.AddSwaggerGen(option =>
 });
 builder.Services.AddScoped<ApiKeyValidatorMiddleware>();
 builder.Services.AddScoped<RequestResponseLoggingMiddleware>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var option = builder.Configuration.GetAWSOptions();
 builder.Services.AddDefaultAWSOptions(option);
@@ -87,6 +94,7 @@ if (!app.Environment.IsDevelopment())
         exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
 }
 
+app.UseForwardedHeaders();
 app.UseMiddleware<RequestResponseLoggingMiddleware>();
 app.UseMiddleware<ApiKeyValidatorMiddleware>();
 
