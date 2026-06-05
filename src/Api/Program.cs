@@ -68,6 +68,7 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 builder.Services.AddScoped<ApiKeyValidatorMiddleware>();
+builder.Services.AddScoped<RequestResponseLoggingMiddleware>();
 
 var option = builder.Configuration.GetAWSOptions();
 builder.Services.AddDefaultAWSOptions(option);
@@ -86,7 +87,7 @@ if (!app.Environment.IsDevelopment())
         exceptionHandlerApp.Run(async context => await Results.Problem().ExecuteAsync(context)));
 }
 
-
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
 app.UseMiddleware<ApiKeyValidatorMiddleware>();
 
 app.UseCors();
