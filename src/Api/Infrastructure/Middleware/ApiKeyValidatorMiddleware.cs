@@ -7,8 +7,8 @@ public class ApiKeyValidatorMiddleware : IMiddleware
 {
     private static readonly HashSet<string> ProtectedRegistrationPaths = new(StringComparer.OrdinalIgnoreCase)
     {
-        "/v1/login/apply/otp",
-        "/v1/register/validate-otp",
+        // "/v1/login/apply/otp",
+        // "/v1/register/validate-otp",
         "/v1/register",
         "/v1/anyregister"
     };
