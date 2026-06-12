@@ -32,12 +32,12 @@ public class ApiKeyValidatorMiddleware : IMiddleware
             return next(context);
 
         var isProtectedRegistrationPath = ProtectedRegistrationPaths.Contains(normalizedPath);
+        var shouldAlwaysProtectRegistrationPath = settings.AlwaysProtectRegistrationPaths && isProtectedRegistrationPath;
         var isWhitelisted = settings.WhiteList.Any(path =>
             normalizedPath.Equals(path, StringComparison.OrdinalIgnoreCase) ||
             normalizedPath.Equals(path.StartsWith('/') ? path : $"/{path}", StringComparison.OrdinalIgnoreCase));
 
-        // Registration endpoints are always guarded, independent of global IsEnabled.
-        if (!isProtectedRegistrationPath && (!settings.IsEnabled || isWhitelisted))
+        if (!shouldAlwaysProtectRegistrationPath && (!settings.IsEnabled || isWhitelisted))
             return next(context);
 
         var headerName = string.IsNullOrWhiteSpace(settings.HeaderName) ? "x-api-key" : settings.HeaderName;

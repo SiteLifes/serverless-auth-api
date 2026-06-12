@@ -53,12 +53,16 @@ public static class StartupExtensions
         service.Configure<OtpSecurityOptions>(configuration.GetSection("OtpSecurity"));
 
 
-        configuration.AddSystemsManager(config =>
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        if (!string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
         {
-            config.Path = $"/auth-api";
-            config.ReloadAfter = TimeSpan.FromMinutes(5);
-            config.ParameterProcessor = new JsonParameterProcessor();
-        });
+            configuration.AddSystemsManager(config =>
+            {
+                config.Path = $"/auth-api";
+                config.ReloadAfter = TimeSpan.FromMinutes(5);
+                config.ParameterProcessor = new JsonParameterProcessor();
+            });
+        }
 
         return service;
     }
