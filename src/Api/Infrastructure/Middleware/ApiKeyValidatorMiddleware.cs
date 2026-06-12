@@ -8,13 +8,15 @@ public class ApiKeyValidatorMiddleware : IMiddleware
     private static readonly HashSet<string> AlwaysPublicPaths = new(StringComparer.OrdinalIgnoreCase)
     {
         "/v1/login/apply/otp",
-        "/v1/register/validate-otp"
+        "/v1/register/validate-otp",
+        "/v1/register",
+
     };
 
     private static readonly HashSet<string> ProtectedRegistrationPaths = new(StringComparer.OrdinalIgnoreCase)
     {
-        "/v1/register",
-        "/v1/anyregister"
+        "/v1/anyregister",
+        "/v1/anyregister/phone"
     };
 
     private readonly IOptionsSnapshot<ApiKeyValidationSettings> _apiKeyValidationSettings;
