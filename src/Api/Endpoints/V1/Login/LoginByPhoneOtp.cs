@@ -20,9 +20,9 @@ public class LoginByPhoneOtp : IEndpoint
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
 
-        var isCaptchaValid = await captchaService.ValidateAsync(request.CaptchaToken, apiContext.IpAddress, cancellationToken);
-        if (!isCaptchaValid)
-            return Results.BadRequest(new Dictionary<string, string> {{"Captcha", "Captcha is not valid"}});
+        // var isCaptchaValid = await captchaService.ValidateAsync(request.CaptchaToken, apiContext.IpAddress, cancellationToken);
+        // if (!isCaptchaValid)
+        //     return Results.BadRequest(new Dictionary<string, string> {{"Captcha", "Captcha is not valid"}});
 
 
         var phone = request.Phone.Replace("+90","");
