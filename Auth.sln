@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "src\Api\Api.csproj",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Domain\Domain.csproj", "{46E29D37-B962-41F6-8454-32C6D02AD7FA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.Tests", "tests\Auth.Tests\Auth.Tests.csproj", "{E8D9C20D-5D5F-48F6-B48F-03B2F6D115A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{46E29D37-B962-41F6-8454-32C6D02AD7FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46E29D37-B962-41F6-8454-32C6D02AD7FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{46E29D37-B962-41F6-8454-32C6D02AD7FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8D9C20D-5D5F-48F6-B48F-03B2F6D115A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8D9C20D-5D5F-48F6-B48F-03B2F6D115A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8D9C20D-5D5F-48F6-B48F-03B2F6D115A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8D9C20D-5D5F-48F6-B48F-03B2F6D115A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

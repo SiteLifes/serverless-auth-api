@@ -7,6 +7,7 @@ using Domain.Entities.Base;
 using Domain.Options;
 using Domain.Repositories;
 using Domain.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Services;
@@ -25,12 +26,14 @@ public class AuthService : IAuthService
     private readonly IEventBusManager _eventBusManager;
     private readonly HttpClient _httpClient;
     private readonly IOptionsSnapshot<OtpSecurityOptions> _otpSecurityOptions;
+    private readonly ILogger<AuthService> _logger;
 
 
     public AuthService(IAuthRepository authRepository, IOptionsSnapshot<JwtOptions> jwtOptionsSnapshot,
         IMessageService messageService, ISmsProviderFactory smsProviderFactory, ICryptoService cryptoService,
         IOptionsSnapshot<AllowedPhonesOptions> allowedPhonesOptions, IEventBusManager eventBusManager,
-        HttpClient httpClient, IOptionsSnapshot<OtpSecurityOptions> otpSecurityOptions)
+        HttpClient httpClient, IOptionsSnapshot<OtpSecurityOptions> otpSecurityOptions,
+        ILogger<AuthService> logger)
     {
         _authRepository = authRepository;
         _jwtOptionsSnapshot = jwtOptionsSnapshot;
@@ -41,6 +44,7 @@ public class AuthService : IAuthService
         _eventBusManager = eventBusManager;
         _httpClient = httpClient;
         _otpSecurityOptions = otpSecurityOptions;
+        _logger = logger;
     }
 
     public async Task<OtpSendResult> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
@@ -68,8 +72,23 @@ public class AuthService : IAuthService
 
     public async Task<string?> FindUserByPhone(string phone, CancellationToken cancellationToken)
     {
-        var entity = await _authRepository.GetPhoneUserMapAsync(phone, cancellationToken);
-        return entity?.UserId;
+        var mappings = await _authRepository.GetPhoneUserMapsAsync(phone, cancellationToken);
+        var userIds = mappings
+            .Select(mapping => mapping.UserId)
+            .Where(userId => !string.IsNullOrWhiteSpace(userId))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (userIds.Count > 1)
+        {
+            _logger.LogError(
+                "Login blocked because phone suffix {PhoneSuffix} has mappings for multiple users: {UserIds}",
+                GetPhoneSuffix(phone),
+                string.Join(",", userIds));
+            return null;
+        }
+
+        return userIds.SingleOrDefault();
     }
 
     public async Task<string?> FindUserByEmail(string email, CancellationToken cancellationToken = default)
@@ -130,8 +149,7 @@ public class AuthService : IAuthService
             UserId = userId
         };
 
-        await _authRepository.CreatePhoneUserMapAsync(entity, cancellationToken);
-        return true;
+        return await _authRepository.TryCreatePhoneUserMapAsync(entity, cancellationToken);
     }
 
     public async Task CreateEmailUserMapping(string email, string userId, CancellationToken cancellationToken)
@@ -219,23 +237,18 @@ public class AuthService : IAuthService
     public async Task<bool> DeleteAllUserDataAsync(string userId, string email, string phone,
         CancellationToken cancellationToken)
     {
-        var phoneUserMapAsync = _authRepository.GetPhoneUserMapAsync(phone, cancellationToken);
+        var phoneUserMapsAsync = _authRepository.GetPhoneUserMapsAsync(phone, cancellationToken);
         var emailUserMapAsync = _authRepository.GetEmailUserMapAsync(email, cancellationToken);
         var userPasswordMapAsync = _authRepository.GetPasswordUserMapAsync(userId, cancellationToken);
         var userRefreshTokenMappingAsync = _authRepository.GetUserRefreshTokenMappingsAsync(userId, cancellationToken);
 
-        await Task.WhenAll(phoneUserMapAsync, emailUserMapAsync, userPasswordMapAsync, userRefreshTokenMappingAsync);
-        var phoneUserMap = await phoneUserMapAsync;
+        await Task.WhenAll(phoneUserMapsAsync, emailUserMapAsync, userPasswordMapAsync, userRefreshTokenMappingAsync);
+        var phoneUserMaps = await phoneUserMapsAsync;
         var emailUserMap = await emailUserMapAsync;
         var userPasswordMap = await userPasswordMapAsync;
         var userRefreshTokenMapping = await userRefreshTokenMappingAsync;
 
         var entities = new List<IEntity>();
-        if (phoneUserMap != null && phoneUserMap.UserId == userId)
-        {
-            entities.Add(phoneUserMap);
-        }
-
         if (emailUserMap != null && emailUserMap.UserId == userId)
         {
             entities.Add(emailUserMap);
@@ -256,6 +269,11 @@ public class AuthService : IAuthService
                 }));
         }
 
+        if (phoneUserMaps.Any(mapping => string.Equals(mapping.UserId, userId, StringComparison.Ordinal)))
+        {
+            await _authRepository.DeletePhoneUserMapsAsync(phone, userId, cancellationToken);
+        }
+
         await _authRepository.BatchDeleteAsync(entities, cancellationToken);
         return true;
     }
@@ -265,6 +283,11 @@ public class AuthService : IAuthService
         return _otpSecurityOptions.Value.OnReview &&
                phone == ReviewBypassPhone &&
                otp == ReviewBypassOtp;
+    }
+
+    private static string GetPhoneSuffix(string phone)
+    {
+        return phone.Length <= 4 ? phone : phone[^4..];
     }
 
     private async Task<OtpSendResult> EnforceOtpSendRateLimitAsync(string phone, string? ipAddress,
@@ -325,22 +348,11 @@ public class AuthService : IAuthService
     public async Task<bool> UpdateUserPhoneMappingAsync(string userId, string? oldPhone, string phone,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(oldPhone))
-        {
-            var userPhoneMapping = await _authRepository.GetPhoneUserMapAsync(oldPhone, cancellationToken);
-            if (userPhoneMapping != null && userPhoneMapping.UserId == userId)
-            {
-                await _authRepository.DeletePhoneUserMapAsync(userPhoneMapping, cancellationToken);
-            }
-        }
-
-
-        await _authRepository.CreatePhoneUserMapAsync(new UserPhoneMapEntity()
-        {
-            UserId = userId,
-            Phone = phone
-        }, cancellationToken);
-        return true;
+        return await _authRepository.TryReplacePhoneUserMapAsync(
+            userId,
+            oldPhone,
+            phone,
+            cancellationToken);
     }
 
     public async Task<bool> UpdateUserEmailMappingAsync(string userId, string? oldEmail, string email,

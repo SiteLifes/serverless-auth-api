@@ -1,15 +1,22 @@
+using System.Net;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Domain.Entities;
 using Domain.Entities.Base;
 using Domain.Repositories;
+using Infrastructure.Extensions;
 using Infrastructure.Repositories.Base;
 
 namespace Infrastructure.Repositories;
 
 public class AuthRepository : DynamoRepository, IAuthRepository
 {
+    private const int MaxTransactionItems = 100;
+    private readonly IAmazonDynamoDB _dynamoDb;
+
     public AuthRepository(IAmazonDynamoDB dynamoDb) : base(dynamoDb)
     {
+        _dynamoDb = dynamoDb;
     }
 
 
@@ -97,15 +104,86 @@ public class AuthRepository : DynamoRepository, IAuthRepository
 
     public async Task<UserPhoneMapEntity?> GetPhoneUserMapAsync(string phone, CancellationToken cancellationToken = default)
     {
-        var entities = await GetAllAsync<UserPhoneMapEntity>(UserPhoneMapEntity.GetPk(phone), cancellationToken);
+        var entities = await GetPhoneUserMapsAsync(phone, cancellationToken);
+        var userIds = entities
+            .Select(entity => entity.UserId)
+            .Where(userId => !string.IsNullOrWhiteSpace(userId))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
-        return entities.FirstOrDefault();
+        if (userIds.Count != 1)
+        {
+            return null;
+        }
+
+        return entities.FirstOrDefault(entity => entity.Sk == UserPhoneMapEntity.CanonicalSortKey)
+               ?? entities.FirstOrDefault();
     }
 
-    public async Task<UserPhoneMapEntity> CreatePhoneUserMapAsync(UserPhoneMapEntity entity, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<UserPhoneMapEntity>> GetPhoneUserMapsAsync(string phone,
+        CancellationToken cancellationToken = default)
     {
-        await SaveAsync(entity, cancellationToken);
-        return entity;
+        var entities = await GetAllAsync<UserPhoneMapEntity>(UserPhoneMapEntity.GetPk(phone), cancellationToken);
+        return entities
+            .Where(entity => !string.IsNullOrWhiteSpace(entity.UserId))
+            .ToList();
+    }
+
+    public Task<bool> TryCreatePhoneUserMapAsync(UserPhoneMapEntity entity,
+        CancellationToken cancellationToken = default)
+    {
+        return TryReplacePhoneUserMapAsync(entity.UserId, entity.Phone, entity.Phone, cancellationToken);
+    }
+
+    public async Task<bool> TryReplacePhoneUserMapAsync(string userId, string? oldPhone, string phone,
+        CancellationToken cancellationToken = default)
+    {
+        var newMappings = await GetPhoneUserMapsAsync(phone, cancellationToken);
+        if (newMappings.Any(mapping => !string.Equals(mapping.UserId, userId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        IReadOnlyList<UserPhoneMapEntity> oldMappings = Array.Empty<UserPhoneMapEntity>();
+        if (!string.IsNullOrWhiteSpace(oldPhone))
+        {
+            oldMappings = string.Equals(oldPhone, phone, StringComparison.Ordinal)
+                ? newMappings
+                : await GetPhoneUserMapsAsync(oldPhone, cancellationToken);
+        }
+
+        var canonicalMapping = new UserPhoneMapEntity
+        {
+            Phone = phone,
+            UserId = userId,
+            Sk = UserPhoneMapEntity.CanonicalSortKey
+        };
+
+        var transactionItems = new List<TransactWriteItem>
+        {
+            CreateCanonicalPhoneMappingPut(canonicalMapping)
+        };
+
+        transactionItems.AddRange(oldMappings
+            .Where(mapping => string.Equals(mapping.UserId, userId, StringComparison.Ordinal))
+            .Where(mapping => !IsSameKey(mapping, canonicalMapping))
+            .Select(CreatePhoneMappingDelete));
+
+        ValidateTransactionSize(transactionItems.Count);
+
+        try
+        {
+            var response = await _dynamoDb.TransactWriteItemsAsync(new TransactWriteItemsRequest
+            {
+                TransactItems = transactionItems
+            }, cancellationToken);
+
+            return response.HttpStatusCode == HttpStatusCode.OK;
+        }
+        catch (TransactionCanceledException exception) when (HasConditionalCheckFailure(exception))
+        {
+            return false;
+        }
     }
 
     public async Task<UserEmailMapEntity> CreateEmailUserMapAsync(UserEmailMapEntity entity, CancellationToken cancellationToken = default)
@@ -152,9 +230,24 @@ public class AuthRepository : DynamoRepository, IAuthRepository
         await BatchWriteAsync(new List<IEntity>(), olderPasswords.Select(q => (IEntity) q).ToList(), cancellationToken);
     }
 
-    public async Task DeletePhoneUserMapAsync(UserPhoneMapEntity phoneUserMap, CancellationToken cancellationToken)
+    public async Task DeletePhoneUserMapsAsync(string phone, string userId, CancellationToken cancellationToken)
     {
-        await DeleteAsync(UserPhoneMapEntity.GetPk(phoneUserMap.Phone), phoneUserMap.UserId, cancellationToken);
+        var mappings = await GetPhoneUserMapsAsync(phone, cancellationToken);
+        var transactionItems = mappings
+            .Where(mapping => string.Equals(mapping.UserId, userId, StringComparison.Ordinal))
+            .Select(CreatePhoneMappingDelete)
+            .ToList();
+
+        if (transactionItems.Count == 0)
+        {
+            return;
+        }
+
+        ValidateTransactionSize(transactionItems.Count);
+        await _dynamoDb.TransactWriteItemsAsync(new TransactWriteItemsRequest
+        {
+            TransactItems = transactionItems
+        }, cancellationToken);
     }
 
     public async Task DeleteEmailUserMapAsync(UserEmailMapEntity emailUserMap, CancellationToken cancellationToken)
@@ -190,6 +283,85 @@ public class AuthRepository : DynamoRepository, IAuthRepository
     public async Task<List<UserLoginEntity>> GetUserLoginAsync(string userId, CancellationToken cancellationToken)
     {
         return await GetAllAsync<UserLoginEntity>(UserLoginEntity.GetPk(userId), cancellationToken);
+    }
+
+    private TransactWriteItem CreateCanonicalPhoneMappingPut(UserPhoneMapEntity mapping)
+    {
+        return new TransactWriteItem
+        {
+            Put = new Put
+            {
+                TableName = GetTableName(),
+                Item = mapping.ToAttributeMap(),
+                ConditionExpression = "attribute_not_exists(#pk) OR #userId = :userId",
+                ExpressionAttributeNames = new Dictionary<string, string>
+                {
+                    ["#pk"] = "pk",
+                    ["#userId"] = "userId"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":userId"] = new() { S = mapping.UserId }
+                }
+            }
+        };
+    }
+
+    private TransactWriteItem CreatePhoneMappingDelete(UserPhoneMapEntity mapping)
+    {
+        var delete = new Delete
+        {
+            TableName = GetTableName(),
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["pk"] = new() { S = UserPhoneMapEntity.GetPk(mapping.Phone) },
+                ["sk"] = new() { S = mapping.Sk }
+            }
+        };
+
+        if (mapping.Sk == UserPhoneMapEntity.CanonicalSortKey)
+        {
+            delete.ConditionExpression = "attribute_not_exists(#pk) OR #userId = :userId";
+            delete.ExpressionAttributeNames = new Dictionary<string, string>
+            {
+                ["#pk"] = "pk",
+                ["#userId"] = "userId"
+            };
+            delete.ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":userId"] = new() { S = mapping.UserId }
+            };
+        }
+
+        return new TransactWriteItem { Delete = delete };
+    }
+
+    private static bool IsSameKey(UserPhoneMapEntity first, UserPhoneMapEntity second)
+    {
+        return string.Equals(first.Phone, second.Phone, StringComparison.Ordinal)
+               && string.Equals(first.Sk, second.Sk, StringComparison.Ordinal);
+    }
+
+    private static void ValidateTransactionSize(int itemCount)
+    {
+        if (itemCount > MaxTransactionItems)
+        {
+            throw new InvalidOperationException(
+                $"Phone mapping repair requires {itemCount} transaction items; DynamoDB supports at most {MaxTransactionItems}.");
+        }
+    }
+
+    private static bool HasConditionalCheckFailure(TransactionCanceledException exception)
+    {
+        if (exception.CancellationReasons?.Any(reason => string.Equals(
+                reason.Code,
+                "ConditionalCheckFailed",
+                StringComparison.Ordinal)) == true)
+        {
+            return true;
+        }
+
+        return exception.Message.Contains("ConditionalCheckFailed", StringComparison.Ordinal);
     }
 
     protected override string GetTableName()

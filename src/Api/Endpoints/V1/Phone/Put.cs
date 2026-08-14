@@ -13,7 +13,21 @@ public class Put : IEndpoint
         [FromServices] IAuthService authService,
         CancellationToken cancellationToken)
     {
-        await authService.UpdateUserPhoneMappingAsync(userId, request.OldPhone, request.Phone, cancellationToken);
+        var mappingUpdated = await authService.UpdateUserPhoneMappingAsync(
+            userId,
+            request.OldPhone,
+            request.Phone,
+            cancellationToken);
+        if (!mappingUpdated)
+        {
+            return Results.Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Telefon numarası kullanımda",
+                Detail = "Bu telefon numarası başka bir kullanıcı hesabına bağlı."
+            });
+        }
+
         return Results.Ok();
     }
 
@@ -23,6 +37,7 @@ public class Put : IEndpoint
             .Produces200()
             .Produces400()
             .Produces404()
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .Produces500()
             .WithTags("User");
     }

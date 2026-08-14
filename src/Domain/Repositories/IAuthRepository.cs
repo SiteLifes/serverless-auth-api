@@ -23,8 +23,13 @@ public interface IAuthRepository
         CancellationToken cancellationToken = default);
 
     Task<UserPhoneMapEntity?> GetPhoneUserMapAsync(string phone, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserPhoneMapEntity>> GetPhoneUserMapsAsync(string phone,
+        CancellationToken cancellationToken = default);
 
-    Task<UserPhoneMapEntity> CreatePhoneUserMapAsync(UserPhoneMapEntity entity,
+    Task<bool> TryCreatePhoneUserMapAsync(UserPhoneMapEntity entity,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> TryReplacePhoneUserMapAsync(string userId, string? oldPhone, string phone,
         CancellationToken cancellationToken = default);
 
     Task<UserEmailMapEntity> CreateEmailUserMapAsync(UserEmailMapEntity entity,
@@ -39,7 +44,7 @@ public interface IAuthRepository
     Task<UserEmailMapEntity?> GetEmailUserMapAsync(string email, CancellationToken cancellationToken);
     Task<List<UserPasswordMapEntity>> GetUserPasswords(string userId, CancellationToken cancellationToken);
     Task DeletePasswords(List<UserPasswordMapEntity> olderPasswords, CancellationToken cancellationToken);
-    Task DeletePhoneUserMapAsync(UserPhoneMapEntity phoneUserMap, CancellationToken cancellationToken);
+    Task DeletePhoneUserMapsAsync(string phone, string userId, CancellationToken cancellationToken);
     Task DeleteEmailUserMapAsync(UserEmailMapEntity emailUserMap, CancellationToken cancellationToken);
     Task DeletePasswordUserMapAsync(UserPasswordMapEntity userPasswordMap, CancellationToken cancellationToken);
     Task BatchSaveAsync(List<IEntity> entities, CancellationToken cancellationToken);

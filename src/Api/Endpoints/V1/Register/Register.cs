@@ -22,7 +22,19 @@ public class Register : IEndpoint
         
         if (!string.IsNullOrEmpty(request.Phone))
         {
-            await authService.CreatePhoneUserMapping(request.Phone, request.UserId, cancellationToken);
+            var phoneMappingCreated = await authService.CreatePhoneUserMapping(
+                request.Phone,
+                request.UserId,
+                cancellationToken);
+            if (!phoneMappingCreated)
+            {
+                return Results.Conflict(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Telefon numarası kullanımda",
+                    Detail = "Bu telefon numarası başka bir kullanıcı hesabına bağlı."
+                });
+            }
         }
 
         if (!string.IsNullOrEmpty(request.Email))
@@ -44,6 +56,7 @@ public class Register : IEndpoint
     {
         return endpoints.MapPost("v1/register", Handler)
             .Produces200<JwtDto>()
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithTags("Register");
     }
 
