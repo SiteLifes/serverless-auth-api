@@ -21,10 +21,13 @@ public static class StartupExtensions
     {
         service.AddScoped<IAuthService, AuthService>();
         service.AddSingleton<IAuthRepository, AuthRepository>();
+        service.AddSingleton<IStaffRepository, StaffRepository>();
         service.AddScoped<IMessageService, MessageService>();
         service.AddSingleton<IMessageRepository, MessageRepository>();
         service.AddScoped<ICaptchaService, CaptchaService>();
         service.AddScoped<ICryptoService, CryptoService>();
+        service.AddScoped<IStaffPasswordHasher, StaffPasswordHasher>();
+        service.AddScoped<ITotpService, TotpService>();
         service.AddScoped<ISmsProviderFactory, SmsProviderFactory>();
         service.AddScoped<ISmsProvider, MockSmsProvider>();
         service.AddScoped<ISmsProvider, NetGsmSmsProvider>();
@@ -40,6 +43,7 @@ public static class StartupExtensions
 
         service.AddAWSService<IAmazonSimpleNotificationService>();
         service.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        service.Configure<StaffAuthOptions>(configuration.GetSection(StaffAuthOptions.SectionName));
         service.Configure<PasswordSalt>(configuration.GetSection("PasswordSalt"));
         service.Configure<CaptchaOptions>(configuration.GetSection("CaptchaSettings"));
         var smsSection = configuration.GetSection("SmsProviders");
