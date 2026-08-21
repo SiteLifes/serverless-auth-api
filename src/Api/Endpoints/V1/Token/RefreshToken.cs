@@ -1,5 +1,6 @@
 using Api.Infrastructure.Contract;
 using Domain.Domains;
+using Domain.Repositories;
 using Domain.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ public class RefreshToken : IEndpoint
     private static async Task<IResult> Handler([FromBody] RefreshTokenRequest request,
         [FromServices] IAuthService authService,
         [FromServices] IJwtService jwtService,
+        [FromServices] IStaffRepository staffRepository,
         [FromServices] IValidator<RefreshTokenRequest> validator,
         [FromServices] ILogger<RefreshToken> logger,
         CancellationToken cancellationToken = default)
@@ -26,6 +28,23 @@ public class RefreshToken : IEndpoint
         {
             logger.LogWarning("Invalid refresh token received. Token: {RefreshToken}", request.RefreshToken);
             return Results.Unauthorized();
+        }
+
+        // A refresh has to re-issue the same kind of token the holder logged in with. Falling back
+        // to the resident path here would silently downgrade a staff session on its first refresh,
+        // stripping the userType and roles claims the gateway authorises against.
+        var staff = await staffRepository.GetByIdAsync(userId, cancellationToken);
+        if (staff is not null)
+        {
+            if (!staff.IsActive)
+            {
+                logger.LogWarning("Refresh refused for deactivated staff account {StaffId}.", userId);
+                return Results.Unauthorized();
+            }
+
+            // Roles are read from the record, so a role change takes effect on the next refresh.
+            var staffJwt = await jwtService.CreateStaffJwtAsync(staff, cancellationToken);
+            return Results.Ok(new JwtDto(staffJwt.Token, staffJwt.RefreshToken));
         }
 
         var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken);

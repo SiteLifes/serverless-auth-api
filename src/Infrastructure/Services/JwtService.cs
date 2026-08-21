@@ -100,17 +100,7 @@ public class JwtService : IJwtService
         var jwtOptions = _jwtOptionsSnapshot.Value;
         var staffOptions = _staffAuthOptionsSnapshot.Value;
 
-        var claims = new List<Claim>
-        {
-            new(AuthClaims.UserId, staff.Id),
-            new(AuthClaims.UserType, AuthClaims.UserTypes.Staff),
-            new(AuthClaims.FullName, staff.FullName),
-            new(ClaimTypes.Actor, "StaffLogin"),
-            new(ClaimTypes.Authentication, "Login"),
-            new(ClaimTypes.UserData, staff.Id)
-        };
-
-        claims.AddRange(staff.Roles.Select(role => new Claim(AuthClaims.Role, role.ToString())));
+        var claims = StaffTokenClaims.Build(staff);
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(jwtOptions.Secret);
