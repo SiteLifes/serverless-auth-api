@@ -81,7 +81,7 @@ public class Post : IEndpoint
             RuleFor(q => q.CurrentPassword).NotEmpty();
             RuleFor(q => q.NewPassword)
                 .NotEmpty()
-                .MinimumLength(12).WithMessage("Staff passwords must be at least 12 characters.")
+                .MinimumLength(StaffPasswordPolicy.MinimumLength).WithMessage(StaffPasswordPolicy.TooShortMessage)
                 .NotEqual(q => q.CurrentPassword).WithMessage("The new password must differ from the current one.");
         }
     }

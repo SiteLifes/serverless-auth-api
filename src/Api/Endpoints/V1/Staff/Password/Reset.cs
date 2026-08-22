@@ -81,7 +81,7 @@ public class Reset : IEndpoint
         {
             RuleFor(q => q.NewPassword)
                 .NotEmpty()
-                .MinimumLength(12).WithMessage("Staff passwords must be at least 12 characters.");
+                .MinimumLength(StaffPasswordPolicy.MinimumLength).WithMessage(StaffPasswordPolicy.TooShortMessage);
         }
     }
 }
