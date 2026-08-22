@@ -27,6 +27,7 @@ public static class StartupExtensions
         service.AddScoped<ICaptchaService, CaptchaService>();
         service.AddScoped<ICryptoService, CryptoService>();
         service.AddScoped<IStaffPasswordHasher, StaffPasswordHasher>();
+        service.AddScoped<IStaffSessionRevoker, StaffSessionRevoker>();
         service.AddScoped<ITotpService, TotpService>();
         service.AddScoped<ISmsProviderFactory, SmsProviderFactory>();
         service.AddScoped<ISmsProvider, MockSmsProvider>();
