@@ -82,7 +82,13 @@ Resources:
     
   AuthApiTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+        RecoveryPeriodInDays: 35
       AttributeDefinitions:
         - AttributeName: "pk"
           AttributeType: "S"
