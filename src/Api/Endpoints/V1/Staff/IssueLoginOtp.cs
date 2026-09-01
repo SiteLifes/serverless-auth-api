@@ -23,6 +23,11 @@ namespace Api.Endpoints.V1.Staff;
 /// <c>v1/login/validate-otp</c> like any other. Codes are stored under the code itself, so
 /// issuing one here does not invalidate one the resident already holds.
 ///
+/// While the issued code is live, <c>v1/login/phone/otp</c> stops delivering to that number — it
+/// answers as usual so the login screen reaches the code entry step, but sends nothing. Without
+/// that, simply typing the number into a login screen would text the person this endpoint exists
+/// not to text.
+///
 /// This is account access, so the gateway keeps it on StaffAdminPolicy and the check below is the
 /// second lock. Deliberately outside the OTP send rate limiter: consuming a resident's send
 /// budget from the back office would lock them out of their own login.
@@ -64,7 +69,13 @@ public class IssueLoginOtp : IEndpoint
             });
         }
 
-        var otpEntity = await authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken);
+        // Stamped with the staff account: it marks the code as one nobody was told about, and it is
+        // what keeps the login endpoint quiet for the next five minutes.
+        var otpEntity = await authRepository.CreateLoginOtpAsync(
+            userId,
+            phone,
+            apiContext.CurrentUserIdOrNull ?? "unknown",
+            cancellationToken);
 
         // Warning, not information: a code that reaches a staff member rather than the account
         // holder is worth finding in the logs later, whoever asks the question.

@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Domain.Entities;
 using Domain.Entities.Base;
+using Domain.Extensions;
 using Domain.Repositories;
 using Infrastructure.Extensions;
 using Infrastructure.Repositories.Base;
@@ -20,18 +21,33 @@ public class AuthRepository : DynamoRepository, IAuthRepository
     }
 
 
-    public async Task<OtpEntity> CreateLoginOtpAsync(string? userId, string phone, CancellationToken cancellationToken = default)
+    public async Task<OtpEntity> CreateLoginOtpAsync(string? userId, string phone, string? issuedByStaffId = null,
+        CancellationToken cancellationToken = default)
     {
         var entity = new OtpEntity
         {
             UserId = userId,
             Otp = new Random().Next(10000, 99999).ToString(),
-            Key = phone
+            Key = phone,
+            IssuedByStaffId = issuedByStaffId
         };
 
         await SaveAsync(entity, cancellationToken);
 
         return entity;
+    }
+
+    public async Task<OtpEntity?> GetActiveStaffIssuedLoginOtpAsync(string phone,
+        CancellationToken cancellationToken = default)
+    {
+        // Every live code for the number sits in one partition and there are at most a handful, so
+        // this reads them and picks rather than adding an index for a flag.
+        var entities = await GetAllAsync<OtpEntity>(OtpEntity.GetPk(phone), cancellationToken);
+        var now = DateTime.UtcNow.ToUnixTimeSeconds();
+
+        return entities
+            .Where(entity => !string.IsNullOrEmpty(entity.IssuedByStaffId) && entity.Ttl > now)
+            .MaxBy(entity => entity.Ttl);
     }
 
     public async Task<OtpEntity?> GetLoginOtpAsync(string phone, string code, CancellationToken cancellationToken = default)

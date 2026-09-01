@@ -5,8 +5,20 @@ namespace Domain.Repositories;
 
 public interface IAuthRepository
 {
-    Task<OtpEntity> CreateLoginOtpAsync(string? userId, string phone, CancellationToken cancellationToken = default);
+    /// <param name="issuedByStaffId">
+    /// Set when a staff member had the code minted without it being sent anywhere. Marks the code
+    /// as theirs and, while it lasts, suppresses delivery of any further login code to that phone.
+    /// </param>
+    Task<OtpEntity> CreateLoginOtpAsync(string? userId, string phone, string? issuedByStaffId = null,
+        CancellationToken cancellationToken = default);
+
     Task<OtpEntity?> GetLoginOtpAsync(string phone, string code, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The live staff-issued login code for this phone, or null when there is none. Codes that have
+    /// passed their expiry are ignored even if Dynamo has not swept them yet.
+    /// </summary>
+    Task<OtpEntity?> GetActiveStaffIssuedLoginOtpAsync(string phone, CancellationToken cancellationToken = default);
     Task<RefreshTokenUserMapping?> GetLoginAsync(string userId, CancellationToken cancellationToken = default);
 
     Task<OtpEntity> CreateForgotPasswordOtpAsync(string? userId, string email, string otp,

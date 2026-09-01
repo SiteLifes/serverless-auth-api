@@ -50,13 +50,30 @@ public class AuthService : IAuthService
     public async Task<OtpSendResult> SendLoginOtpAsync(string? userId, string phone, string culture, bool isRegistered,
         string? ipAddress, CancellationToken cancellationToken = default)
     {
+        // Support can mint a code from the back office and read it out to whoever is on the phone,
+        // deliberately without texting the number. Sending a second code while that one is live
+        // would text the person the panel just decided not to text, and would leave the code the
+        // caller is holding as the one nobody asked for. So while it lasts, nothing is delivered
+        // here. The call still reports success: the login screen has to move on to code entry for
+        // the issued code to be usable at all.
+        var staffIssuedOtp = await _authRepository.GetActiveStaffIssuedLoginOtpAsync(phone, cancellationToken);
+        if (staffIssuedOtp is not null)
+        {
+            _logger.LogInformation(
+                "Login OTP delivery skipped for phone ending {PhoneSuffix}: a code issued by staff {StaffId} is still valid.",
+                GetPhoneSuffix(phone),
+                staffIssuedOtp.IssuedByStaffId);
+
+            return OtpSendResult.Success();
+        }
+
         var sendRateLimitResult = await EnforceOtpSendRateLimitAsync(phone, ipAddress, cancellationToken);
         if (!sendRateLimitResult.IsSuccess)
         {
             return sendRateLimitResult;
         }
 
-        var otpEntity = await _authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken);
+        var otpEntity = await _authRepository.CreateLoginOtpAsync(userId, phone, cancellationToken: cancellationToken);
         var message = await _messageService.GetMessageAsync(culture, MessageKeys.OTPSms, cancellationToken);
 
         var messagePayload = $"SiteLifes giriş şifreniz : {otpEntity.Otp}";
