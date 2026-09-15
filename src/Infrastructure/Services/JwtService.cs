@@ -29,7 +29,8 @@ public class JwtService : IJwtService
         _staffAuthOptionsSnapshot = staffAuthOptionsSnapshot;
     }
 
-    public async Task<JwtDto> CreateJwtAsync(string userId, CancellationToken cancellationToken = default)
+    public async Task<JwtDto> CreateJwtAsync(string userId, CancellationToken cancellationToken = default,
+        string? replacesRefreshToken = null)
     {
         var jwt = GenerateJwt(userId);
         var refreshToken = Guid.NewGuid().ToString("N");
@@ -41,7 +42,8 @@ public class JwtService : IJwtService
         {
             UserId = userId,
             RefreshToken = refreshToken,
-            ExpireAt = expireAt
+            ExpireAt = expireAt,
+            ReplacesRefreshToken = replacesRefreshToken
         });
         entities.Add(new RefreshTokenUserMapping
         {
@@ -56,7 +58,8 @@ public class JwtService : IJwtService
         return new JwtDto(jwt, refreshToken);
     }
 
-    public async Task<JwtDto> CreateStaffJwtAsync(StaffEntity staff, CancellationToken cancellationToken = default)
+    public async Task<JwtDto> CreateStaffJwtAsync(StaffEntity staff, CancellationToken cancellationToken = default,
+        string? replacesRefreshToken = null)
     {
         var jwt = GenerateStaffJwt(staff);
         var refreshToken = Guid.NewGuid().ToString("N");
@@ -68,7 +71,8 @@ public class JwtService : IJwtService
             {
                 UserId = staff.Id,
                 RefreshToken = refreshToken,
-                ExpireAt = expireAt
+                ExpireAt = expireAt,
+                ReplacesRefreshToken = replacesRefreshToken
             },
             new RefreshTokenUserMapping
             {
@@ -90,9 +94,17 @@ public class JwtService : IJwtService
         {
             return null;
         }
-        refreshTokenEntity.ExpireAt = DateTime.UtcNow.AddMinutes(_jwtOptionsSnapshot.Value.ExpireMinutes);
-        await _authRepository.CreateRefreshTokenAsync(refreshTokenEntity, cancellationToken);
-        return refreshTokenEntity?.UserId;
+
+        // The token being used is not shortened: the client may never receive the replacement this
+        // refresh issues (a lost response, an app suspended mid-request), and cutting this token to an
+        // hour used to log those users out on their next launch. Rotation happens one step later:
+        // using a token proves the client holds it, so the token it replaced is revoked now.
+        if (!string.IsNullOrEmpty(refreshTokenEntity.ReplacesRefreshToken))
+        {
+            await _authRepository.DeleteRefreshTokenAsync(refreshTokenEntity.ReplacesRefreshToken, cancellationToken);
+        }
+
+        return refreshTokenEntity.UserId;
     }
 
     private string GenerateStaffJwt(StaffEntity staff)

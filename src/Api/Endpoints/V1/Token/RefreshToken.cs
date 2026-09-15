@@ -26,7 +26,8 @@ public class RefreshToken : IEndpoint
         var userId = await jwtService.ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken);
         if (string.IsNullOrEmpty(userId))
         {
-            logger.LogWarning("Invalid refresh token received. Token: {RefreshToken}", request.RefreshToken);
+            // Never log the token itself: a still-valid one in the logs is a usable credential.
+            logger.LogWarning("Invalid refresh token received.");
             return Results.Unauthorized();
         }
 
@@ -43,11 +44,11 @@ public class RefreshToken : IEndpoint
             }
 
             // Roles are read from the record, so a role change takes effect on the next refresh.
-            var staffJwt = await jwtService.CreateStaffJwtAsync(staff, cancellationToken);
+            var staffJwt = await jwtService.CreateStaffJwtAsync(staff, cancellationToken, request.RefreshToken);
             return Results.Ok(new JwtDto(staffJwt.Token, staffJwt.RefreshToken));
         }
 
-        var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken);
+        var jwt = await jwtService.CreateJwtAsync(userId, cancellationToken, request.RefreshToken);
         return Results.Ok(new JwtDto(jwt.Token, jwt.RefreshToken));
     }
 
