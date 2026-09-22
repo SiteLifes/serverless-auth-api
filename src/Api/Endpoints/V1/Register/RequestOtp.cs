@@ -11,7 +11,6 @@ public class RequestOtp : IEndpoint
     private static async Task<IResult> Handler(
         [FromBody] RequestOtpModel request,
         [FromServices] IAuthService authService,
-        [FromServices] ICaptchaService captchaService,
         [FromServices] IApiContext apiContext,
         [FromServices] IValidator<RequestOtpModel> validator,
         HttpContext httpContext,
@@ -20,9 +19,6 @@ public class RequestOtp : IEndpoint
         var validation = await validator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
             return Results.ValidationProblem(validation.ToDictionary());
-
-        if (!await captchaService.ValidateAsync(request.CaptchaToken, apiContext.IpAddress, cancellationToken))
-            return Results.BadRequest(new Dictionary<string, string> { ["Captcha"] = "Captcha is not valid" });
 
         var phone = NormalizePhone(request.Phone);
         if (!string.IsNullOrEmpty(await authService.FindUserByPhone(phone, cancellationToken)))
@@ -48,7 +44,7 @@ public class RequestOtp : IEndpoint
             .Produces(StatusCodes.Status429TooManyRequests)
             .WithTags("Register");
 
-    public record RequestOtpModel(string Phone, string CaptchaToken);
+    public record RequestOtpModel(string Phone);
 
     public class RequestOtpModelValidator : AbstractValidator<RequestOtpModel>
     {
@@ -56,7 +52,6 @@ public class RequestOtp : IEndpoint
         {
             RuleFor(x => x.Phone).NotEmpty()
                 .Must(x => x is not null && System.Text.RegularExpressions.Regex.IsMatch(NormalizePhone(x), @"^5\d{9}$"));
-            RuleFor(x => x.CaptchaToken).NotEmpty();
         }
     }
 
