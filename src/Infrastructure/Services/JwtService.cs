@@ -87,12 +87,17 @@ public class JwtService : IJwtService
         return new JwtDto(jwt, refreshToken);
     }
 
-    public async Task<string?> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
+    public async Task<RefreshTokenValidation> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
     {
         var refreshTokenEntity = await _authRepository.GetRefreshTokenAsync(refreshToken, cancellationToken);
-        if (refreshTokenEntity == null || refreshTokenEntity.ExpireAt.AddMinutes(5) < DateTime.UtcNow)
+        if (refreshTokenEntity == null)
         {
-            return null;
+            return RefreshTokenValidation.Invalid(RefreshTokenFailure.NotFound);
+        }
+
+        if (refreshTokenEntity.ExpireAt.AddMinutes(5) < DateTime.UtcNow)
+        {
+            return RefreshTokenValidation.Invalid(RefreshTokenFailure.Expired);
         }
 
         // The token being used is not shortened: the client may never receive the replacement this
@@ -104,7 +109,7 @@ public class JwtService : IJwtService
             await _authRepository.DeleteRefreshTokenAsync(refreshTokenEntity.ReplacesRefreshToken, cancellationToken);
         }
 
-        return refreshTokenEntity.UserId;
+        return RefreshTokenValidation.Valid(refreshTokenEntity.UserId);
     }
 
     private string GenerateStaffJwt(StaffEntity staff)

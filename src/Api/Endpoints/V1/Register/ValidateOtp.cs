@@ -11,7 +11,6 @@ public class ValidateOtp : IEndpoint
     private static async Task<IResult> Handler(
         [FromBody] ValidateOtpForRegister request,
         [FromServices] IAuthService authService,
-        [FromServices] IJwtService jwtService,
         [FromServices] IValidator<ValidateOtpForRegister> validator,
         CancellationToken cancellationToken)
     {
@@ -19,7 +18,9 @@ public class ValidateOtp : IEndpoint
         if (!validationResult.IsValid)
             return Results.BadRequest(validationResult.ToDictionary());
 
-        var result = await authService.VerifyOtpAsync(request.Key, request.Otp, cancellationToken);
+        var result = request.RequireIssuedOtp
+            ? await authService.VerifyRegistrationOtpAsync(request.Key, request.Otp, cancellationToken)
+            : await authService.VerifyOtpAsync(request.Key, request.Otp, cancellationToken);
         if (result.IsLocked)
         {
             return Results.StatusCode(StatusCodes.Status429TooManyRequests);
@@ -46,7 +47,7 @@ public class ValidateOtp : IEndpoint
             .WithTags("Register");
     }
 
-    public record ValidateOtpForRegister(string Key, string Otp);
+    public record ValidateOtpForRegister(string Key, string Otp, bool RequireIssuedOtp = false);
 
     public class ValidateOtpForRegisterValidator : AbstractValidator<ValidateOtpForRegister>
     {

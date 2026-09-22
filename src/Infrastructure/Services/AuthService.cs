@@ -133,6 +133,11 @@ public class AuthService : IAuthService
             () => _authRepository.GetLoginOtpAsync(phone, otp, cancellationToken), cancellationToken);
     }
 
+    public Task<OtpVerificationResult> VerifyRegistrationOtpAsync(string phone, string otp,
+        CancellationToken cancellationToken = default) =>
+        VerifyOtpCoreAsync($"login:{phone}",
+            () => _authRepository.GetLoginOtpAsync(phone, otp, cancellationToken), cancellationToken);
+
     public async Task<OtpVerificationResult> VerifyForgotPasswordOtpAsync(string email, string otp,
         CancellationToken cancellationToken = default)
     {

@@ -23,13 +23,15 @@ public class RefreshToken : IEndpoint
             return Results.BadRequest(validationResult.ToDictionary());
         }
 
-        var userId = await jwtService.ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken);
-        if (string.IsNullOrEmpty(userId))
+        var validation = await jwtService.ValidateRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        if (validation.UserId is null)
         {
             // Never log the token itself: a still-valid one in the logs is a usable credential.
-            logger.LogWarning("Invalid refresh token received.");
+            logger.LogWarning("Refresh token rejected: {Reason}.", validation.Failure);
             return Results.Unauthorized();
         }
+
+        var userId = validation.UserId;
 
         // A refresh has to re-issue the same kind of token the holder logged in with. Falling back
         // to the resident path here would silently downgrade a staff session on its first refresh,

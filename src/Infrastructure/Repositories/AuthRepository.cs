@@ -27,7 +27,7 @@ public class AuthRepository : DynamoRepository, IAuthRepository
         var entity = new OtpEntity
         {
             UserId = userId,
-            Otp = new Random().Next(10000, 99999).ToString(),
+            Otp = System.Security.Cryptography.RandomNumberGenerator.GetInt32(10000, 100000).ToString(),
             Key = phone,
             IssuedByStaffId = issuedByStaffId
         };
@@ -54,7 +54,7 @@ public class AuthRepository : DynamoRepository, IAuthRepository
     {
         var entity = await GetAsync<OtpEntity>(OtpEntity.GetPk(phone), code, cancellationToken);
 
-        if (entity == null || entity.Otp != code)
+        if (entity == null || entity.Otp != code || entity.Ttl <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
         {
             return null;
         }

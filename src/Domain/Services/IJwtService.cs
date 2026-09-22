@@ -9,5 +9,5 @@ public interface IJwtService
         string? replacesRefreshToken = null);
     Task<JwtDto> CreateStaffJwtAsync(StaffEntity staff, CancellationToken cancellationToken = default,
         string? replacesRefreshToken = null);
-    Task<string?> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken= default);
+    Task<RefreshTokenValidation> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
 }

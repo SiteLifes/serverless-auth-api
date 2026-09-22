@@ -30,7 +30,7 @@ public class RefreshTokenRotationTests
         var expireAt = DateTime.UtcNow.AddDays(30);
         tokens.Seed("A", UserId, expireAt);
 
-        Assert.Equal(UserId, await service.ValidateRefreshTokenAsync("A"));
+        Assert.Equal(UserId, (await service.ValidateRefreshTokenAsync("A")).UserId);
 
         Assert.Equal(expireAt, tokens.Get("A")!.ExpireAt);
     }
@@ -45,7 +45,7 @@ public class RefreshTokenRotationTests
         await service.CreateJwtAsync(UserId, replacesRefreshToken: "A");
         // The response is lost, so the client comes back with the only token it has.
 
-        Assert.Equal(UserId, await service.ValidateRefreshTokenAsync("A"));
+        Assert.Equal(UserId, (await service.ValidateRefreshTokenAsync("A")).UserId);
     }
 
     [Fact]
@@ -57,8 +57,8 @@ public class RefreshTokenRotationTests
         await service.ValidateRefreshTokenAsync("A");
         var issued = await service.CreateJwtAsync(UserId, replacesRefreshToken: "A");
 
-        Assert.Equal(UserId, await service.ValidateRefreshTokenAsync(issued.RefreshToken));
-        Assert.Null(await service.ValidateRefreshTokenAsync("A"));
+        Assert.Equal(UserId, (await service.ValidateRefreshTokenAsync(issued.RefreshToken)).UserId);
+        Assert.Equal(RefreshTokenFailure.NotFound, (await service.ValidateRefreshTokenAsync("A")).Failure);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class RefreshTokenRotationTests
         var (service, tokens) = Create();
         tokens.Seed("A", UserId, DateTime.UtcNow.AddMinutes(-10));
 
-        Assert.Null(await service.ValidateRefreshTokenAsync("A"));
+        Assert.Equal(RefreshTokenFailure.Expired, (await service.ValidateRefreshTokenAsync("A")).Failure);
     }
 
     [Fact]
