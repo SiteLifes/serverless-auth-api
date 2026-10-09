@@ -32,7 +32,7 @@ public class ValidateOtp : IEndpoint
         }
 
         var userId = await authService.FindUserByPhone(request.Key, cancellationToken);
-        if (!string.IsNullOrEmpty(userId))
+        if (!request.AllowExistingUser && !string.IsNullOrEmpty(userId))
         {
             return Results.NotFound();
         }
@@ -47,7 +47,11 @@ public class ValidateOtp : IEndpoint
             .WithTags("Register");
     }
 
-    public record ValidateOtpForRegister(string Key, string Otp, bool RequireIssuedOtp = false);
+    public record ValidateOtpForRegister(
+        string Key,
+        string Otp,
+        bool RequireIssuedOtp = false,
+        bool AllowExistingUser = false);
 
     public class ValidateOtpForRegisterValidator : AbstractValidator<ValidateOtpForRegister>
     {

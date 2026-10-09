@@ -23,14 +23,6 @@ public class Otp : IEndpoint
         var userId = await authService.FindUserByPhone(phone, cancellationToken);
         var isRegistered = !string.IsNullOrEmpty(userId);
 
-        if (isRegistered)
-            return Results.NotFound(new ProblemDetails()
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Hata!",
-                Detail = "Yetkili Telefon numarası sistemde kayıtlıdır. İlginiz için teşekkür ederiz. "
-            });
-
         var result = await authService.SendLoginOtpAsync(userId, phone, apiContext.Culture, true,
             apiContext.IpAddress, cancellationToken);
 
