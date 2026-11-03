@@ -12,4 +12,7 @@ public interface IStaffRepository
 
     /// <summary>Persists the account and its email lookup together.</summary>
     Task SaveAsync(StaffEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes the account and its email lookup together, so the address can be reused.</summary>
+    Task DeleteAsync(StaffEntity entity, CancellationToken cancellationToken = default);
 }

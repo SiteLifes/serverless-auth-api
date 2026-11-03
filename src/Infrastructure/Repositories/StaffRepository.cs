@@ -51,6 +51,18 @@ public class StaffRepository : DynamoRepository, IStaffRepository
             cancellationToken);
     }
 
+    public async Task DeleteAsync(StaffEntity entity, CancellationToken cancellationToken = default)
+    {
+        await BatchWriteAsync(
+            new List<IEntity>(),
+            new List<IEntity>
+            {
+                entity,
+                new StaffEmailMapEntity { Email = entity.Email, StaffId = entity.Id }
+            },
+            cancellationToken);
+    }
+
     protected override string GetTableName()
     {
         return GetEnvironmentTableName("auth");
