@@ -29,7 +29,8 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: Publish
-        run: dotnet publish -c Release
+        # ReadyToRun: Lambda soğuk açılışta JIT yapmasın (linux-x64 = dotnet8 x86_64 çalışma ortamı).
+        run: dotnet publish src/Api/Api.csproj -c Release -r linux-x64 --self-contained false -p:PublishReadyToRun=true -p:AppendRuntimeIdentifierToOutputPath=false
 
       - name: Install Zip
         uses: montudor/action-zip@v0.1.0
