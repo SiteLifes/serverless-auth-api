@@ -25,6 +25,9 @@ public static class StaffTokenClaims
             new(ClaimTypes.UserData, staff.Id)
         };
 
+        if (!string.IsNullOrWhiteSpace(staff.Phone))
+            claims.Add(new Claim(AuthClaims.Phone, staff.Phone));
+
         claims.AddRange(staff.Roles
             .Distinct()
             .Select(role => new Claim(AuthClaims.Role, role.ToString())));

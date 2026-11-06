@@ -17,6 +17,9 @@ public static class AuthClaims
     /// <summary>Display name, so the panel can show who is acting without another lookup.</summary>
     public const string FullName = "fullName";
 
+    /// <summary>Staff mobile, only when the account has one: where reminders are pushed.</summary>
+    public const string Phone = "phone";
+
     public static class UserTypes
     {
         /// <summary>A resident or site manager, i.e. every token issued today.</summary>

@@ -26,6 +26,14 @@ public class StaffEntity : IEntity
     /// <summary>Base64 salt, unique per account.</summary>
     [JsonPropertyName("passwordSalt")] public string PasswordSalt { get; set; } = default!;
 
+    /// <summary>
+    /// Optional Turkish mobile, ten digits without the leading zero. Reminders are pushed to the
+    /// SiteLifes app account opened with this number (a planned sales call, for instance), so a
+    /// staff member without it simply gets none. Carried in the token so the writer of a record
+    /// can be reached later without a lookup.
+    /// </summary>
+    [JsonPropertyName("phone")] public string? Phone { get; set; }
+
     [JsonPropertyName("roles")] public List<StaffRole> Roles { get; set; } = new();
 
     /// <summary>

@@ -80,6 +80,32 @@ public class StaffTokenClaimsTests
         Assert.Contains(claims, c => c.Type == ClaimTypes.Authentication);
     }
 
+    [Fact]
+    public void Build_ShouldCarryThePhoneWhenTheAccountHasOne()
+    {
+        var staff = Staff();
+        staff.Phone = "5551112233";
+
+        Assert.Equal("5551112233", StaffTokenClaims.Build(staff).Single(c => c.Type == AuthClaims.Phone).Value);
+    }
+
+    [Fact]
+    public void Build_ShouldLeaveThePhoneOutWhenThereIsNone()
+    {
+        Assert.DoesNotContain(StaffTokenClaims.Build(Staff()), c => c.Type == AuthClaims.Phone);
+    }
+
+    [Theory]
+    [InlineData("0555 111 22 33", "5551112233")]
+    [InlineData("+90 555 111 22 33", "5551112233")]
+    [InlineData("5551112233", "5551112233")]
+    [InlineData("0212 123 45 67", null)]
+    [InlineData("555 111", null)]
+    public void StaffPhone_ShouldOnlyAcceptATurkishMobile(string written, string? expected)
+    {
+        Assert.Equal(expected, Api.Endpoints.V1.Staff.Phone.StaffPhone.Normalize(written));
+    }
+
     private static StaffEntity Staff(params StaffRole[] roles) => new()
     {
         Id = "staff-1",
