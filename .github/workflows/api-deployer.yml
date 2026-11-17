@@ -17,6 +17,7 @@ jobs:
 
     env:
       LambdaName: ${{ github.ref == 'refs/heads/main' && 'AuthApiLambdaFunction' || 'AuthApiTestLambdaFunction' }}
+      PublishDir: ${{ github.workspace }}/artifacts/auth
 
     steps:
       - uses: actions/checkout@v3
@@ -30,14 +31,13 @@ jobs:
 
       - name: Publish
         # ReadyToRun: Lambda soğuk açılışta JIT yapmasın (linux-x64 = dotnet8 x86_64 çalışma ortamı).
-        run: dotnet publish src/Api/Api.csproj -c Release -r linux-x64 --self-contained false -p:PublishReadyToRun=true -p:AppendRuntimeIdentifierToOutputPath=false
-
-      - name: Install Zip
-        uses: montudor/action-zip@v0.1.0
+        # Çıktıyı sabit klasöre yaz: RID'li publish varsayılan olarak linux-x64/publish altına gider
+        # ve aşağıdaki paketleme adımı eski net8.0/publish yolunu aradığında deploy sessizce dururdu.
+        run: dotnet publish src/Api/Api.csproj -c Release -r linux-x64 --self-contained false -p:PublishReadyToRun=true --output "${PublishDir}"
 
       - name: Zip Publish Output
-        run: zip -qq -r ./bundle.zip ./
-        working-directory: src/Api/bin/Release/net8.0/publish
+        run: zip -qq -r "${GITHUB_WORKSPACE}/bundle.zip" .
+        working-directory: ${{ env.PublishDir }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -47,5 +47,4 @@ jobs:
           aws-region: eu-central-1
 
       - name: AWS Deploy
-        run: |
-          aws lambda update-function-code --function-name ${{ env.LambdaName }} --zip-file fileb://src/Api/bin/Release/net8.0/publish/bundle.zip
+        run: aws lambda update-function-code --function-name "${LambdaName}" --zip-file "fileb://${GITHUB_WORKSPACE}/bundle.zip"
