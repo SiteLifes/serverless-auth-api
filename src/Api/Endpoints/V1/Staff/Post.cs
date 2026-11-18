@@ -100,6 +100,9 @@ public class Post : IEndpoint
                 .NotEmpty()
                 .MinimumLength(StaffPasswordPolicy.MinimumLength).WithMessage(StaffPasswordPolicy.TooShortMessage);
             RuleFor(q => q.Roles).NotEmpty().WithMessage("At least one role is required.");
+            // The wire format is the number, so a stray 7 would otherwise be stored as a role no
+            // policy knows (see StaffRoleChange.Check).
+            RuleForEach(q => q.Roles).IsInEnum().WithMessage("Unknown role.");
         }
     }
 }

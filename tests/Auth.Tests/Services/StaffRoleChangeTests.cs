@@ -31,6 +31,15 @@ public class StaffRoleChangeTests
     }
 
     [Fact]
+    public void Check_ShouldAcceptFieldSales()
+    {
+        // Saha Satış: Admin's powers on the person's own customers only.
+        var refusal = StaffRoleChange.Check("staff-1", "staff-2", [StaffRole.FieldSales]);
+
+        Assert.Equal(StaffRoleChange.Refusal.None, refusal);
+    }
+
+    [Fact]
     public void Check_ShouldRefuseARoleNoPolicyKnows()
     {
         var refusal = StaffRoleChange.Check("staff-1", "staff-2", [(StaffRole)7]);

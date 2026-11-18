@@ -45,6 +45,15 @@ public class StaffTokenClaimsTests
     }
 
     [Fact]
+    public void Build_ShouldNameFieldSalesTheWayTheGatewayExpects()
+    {
+        // App.Gateway StaffClaims.Roles.FieldSales mirrors this string.
+        var claims = StaffTokenClaims.Build(Staff(StaffRole.FieldSales));
+
+        Assert.Equal("FieldSales", claims.Single(c => c.Type == AuthClaims.Role).Value);
+    }
+
+    [Fact]
     public void Build_ShouldNotRepeatADuplicatedRole()
     {
         var claims = StaffTokenClaims.Build(Staff(StaffRole.Admin, StaffRole.Admin));
